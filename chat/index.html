@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>celsius|chat</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="app-container">
+<aside class="sidebar-left">
+<div class="brand-header">
+<div class="brand-logo">
+<img src="favicon.ico" alt="celsius" class="brand-favicon">
+</div>
+<h1 class="brand-name">celsius|chat</h1>
+</div>
+<div class="section-title">CHANNELS</div>
+<div class="channel-list" id="channel-list">
+<div class="channel-item active" data-channel="general">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">general</span>
+</div>
+<div class="channel-item" data-channel="development">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">development</span>
+</div>
+<div class="channel-item" data-channel="design">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">design</span>
+</div>
+<div class="channel-item" data-channel="off-topic">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">off-topic</span>
+</div>
+<div class="channel-item" data-channel="music">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">music</span>
+</div>
+<div class="channel-item" data-channel="gaming">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">gaming</span>
+</div>
+<div class="channel-item" data-channel="announcements">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">announcements</span>
+</div>
+<div class="channel-item" data-channel="lounge">
+<img src="favicon.ico" class="channel-icon" alt="channel">
+<span class="channel-name">lounge</span>
+</div>
+</div>
+<div class="user-profile-section">
+<div class="user-avatar" id="current-user-avatar">
+<img src="favicon.ico" class="avatar-favicon" alt="user">
+</div>
+<div class="user-info">
+<div class="username-display" id="current-username">Loading...</div>
+<div class="user-status">Online</div>
+</div>
+</div>
+</aside>
+<main class="chat-area">
+<div class="chat-header">
+<div class="chat-header-info">
+<img src="favicon.ico" class="header-icon" alt="channel">
+<h2 id="current-channel-title">general</h2>
+</div>
+</div>
+<div class="messages-container" id="messages-container">
+<div class="messages-list" id="messages-list">
+</div>
+</div>
+<div class="input-area">
+<div class="input-wrapper">
+<img src="favicon.ico" class="input-favicon" alt="input">
+<input type="text" id="message-input" placeholder="Message #general" autocomplete="off">
+</div>
+</div>
+</main>
+<aside class="sidebar-right">
+<div class="right-header">
+<h3>MEMBERS</h3>
+</div>
+<div class="users-section-title">ONLINE <span id="online-count">0</span></div>
+<div class="users-list" id="users-list">
+</div>
+</aside>
+</div>
+<script type="module" src="script.js"></script>
+</body>
+</html>
