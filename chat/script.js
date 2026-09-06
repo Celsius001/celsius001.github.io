@@ -20,7 +20,6 @@ let currentChannel = "general";
 let currentUid = "";
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
-let presenceInterval = null;
 
 const channelElements = document.querySelectorAll('.channel-item');
 const currentChannelTitle = document.getElementById('current-channel-title');
@@ -51,9 +50,7 @@ onAuthStateChanged(auth, async (user) => {
             
             try {
                 await updateProfile(user, { displayName: currentUser });
-            } catch (e) {
-                console.error("Error updating profile:", e);
-            }
+            } catch (e) {}
         }
         
         currentUsernameDisplay.textContent = currentUser;
@@ -67,20 +64,12 @@ onAuthStateChanged(auth, async (user) => {
 function registerUserPresence() {
     const userRef = doc(db, 'online_users', currentUser);
     
-    const updatePresence = () => {
-        setDoc(userRef, {
-            username: currentUser,
-            updatedAt: serverTimestamp()
-        }, { merge: true }).catch(() => {});
-    };
-
-    updatePresence();
-    
-    if (presenceInterval) clearInterval(presenceInterval);
-    presenceInterval = setInterval(updatePresence, 10000);
+    setDoc(userRef, {
+        username: currentUser,
+        joinedAt: serverTimestamp()
+    }).catch(() => {});
 
     window.addEventListener('beforeunload', () => {
-        clearInterval(presenceInterval);
         deleteDoc(userRef);
     });
 
@@ -88,7 +77,7 @@ function registerUserPresence() {
 }
 
 function listenToOnlineUsers() {
-    const usersQuery = query(collection(db, 'online_users'), orderBy('updatedAt', 'desc'));
+    const usersQuery = query(collection(db, 'online_users'), orderBy('joinedAt', 'desc'));
     
     if (unsubscribeUsers) {
         unsubscribeUsers();
@@ -97,20 +86,10 @@ function listenToOnlineUsers() {
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
         usersList.innerHTML = '';
         let count = 0;
-        const now = Date.now();
         
         snapshot.forEach((docSnap) => {
-            const userData = docSnap.data();
-            const updatedAt = userData.updatedAt;
-            
-            if (updatedAt) {
-                const diff = now - updatedAt.toMillis();
-                if (diff > 35000) {
-                    return;
-                }
-            }
-            
             count++;
+            const userData = docSnap.data();
             const userEl = document.createElement('div');
             userEl.className = 'user-item';
             
@@ -132,15 +111,13 @@ function listenToOnlineUsers() {
         });
         
         onlineCount.textContent = count;
-    }, (error) => {
-        console.error("Error fetching online users:", error);
-    });
+    }, () => {});
 }
 
 function switchChannel(channelName) {
     currentChannel = channelName;
     currentChannelTitle.textContent = currentChannel;
-    messageInput.placeholder = `Message #${currentChannel}`;
+    messageInput.placeholder = `Message #${channelName}`;
     
     channelElements.forEach(el => {
         if (el.getAttribute('data-channel') === currentChannel) {
@@ -175,9 +152,7 @@ function listenToMessages() {
             }
         });
         scrollToBottom();
-    }, (error) => {
-        console.error("Error fetching messages:", error);
-    });
+    }, () => {});
 }
 
 function appendMessage(data) {
