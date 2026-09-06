@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -12,12 +13,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 let currentUser = "";
 let currentChannel = "general";
+let currentUid = "";
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
-const userId = crypto.randomUUID();
 
 const channelElements = document.querySelectorAll('.channel-item');
 const currentChannelTitle = document.getElementById('current-channel-title');
@@ -28,28 +30,46 @@ const usersList = document.getElementById('users-list');
 const onlineCount = document.getElementById('online-count');
 const currentUsernameDisplay = document.getElementById('current-username');
 
-function initializeUser() {
-    let storedName = localStorage.getItem('celsius_username');
-    if (!storedName) {
-        storedName = prompt("Enter your username to join celsius|chat:", "");
-        if (!storedName || storedName.trim() === "") {
-            storedName = "User_" + Math.floor(1000 + Math.random() * 9000);
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUid = user.uid;
+        
+        if (user.displayName) {
+            currentUser = user.displayName;
+            localStorage.setItem('celsius_username', currentUser);
+        } else {
+            let storedName = localStorage.getItem('celsius_username');
+            if (!storedName) {
+                storedName = prompt("Enter your username to join celsius|chat:", "");
+                if (!storedName || storedName.trim() === "") {
+                    storedName = "User_" + Math.floor(1000 + Math.random() * 9000);
+                }
+            }
+            currentUser = storedName.trim();
+            localStorage.setItem('celsius_username', currentUser);
+            
+            try {
+                await updateProfile(user, { displayName: currentUser });
+            } catch (e) {
+                console.error("Error updating profile:", e);
+            }
         }
-        localStorage.setItem('celsius_username', storedName.trim());
+        
+        currentUsernameDisplay.textContent = currentUser;
+        registerUserPresence();
+        switchChannel('general');
+    } else {
+        signInAnonymously(auth).catch(() => {});
     }
-    currentUser = storedName;
-    currentUsernameDisplay.textContent = currentUser;
-    registerUserPresence();
-}
+});
 
 function registerUserPresence() {
-    const userRef = doc(db, 'online_users', userId);
+    const userRef = doc(db, 'online_users', currentUser);
+    
     setDoc(userRef, {
         username: currentUser,
         joinedAt: serverTimestamp()
-    }).catch(err => {
-        console.error("Error setting presence:", err);
-    });
+    }).catch(() => {});
 
     window.addEventListener('beforeunload', () => {
         deleteDoc(userRef);
@@ -60,22 +80,23 @@ function registerUserPresence() {
 
 function listenToOnlineUsers() {
     const usersQuery = query(collection(db, 'online_users'), orderBy('joinedAt', 'desc'));
+    
     if (unsubscribeUsers) {
         unsubscribeUsers();
     }
+    
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
         usersList.innerHTML = '';
         let count = 0;
+        
         snapshot.forEach((docSnap) => {
             count++;
             const userData = docSnap.data();
-            
             const userEl = document.createElement('div');
             userEl.className = 'user-item';
             
             const avatarEl = document.createElement('div');
             avatarEl.className = 'user-item-avatar';
-            
             const iconImg = document.createElement('img');
             iconImg.src = 'favicon.ico';
             iconImg.alt = 'user';
@@ -90,9 +111,10 @@ function listenToOnlineUsers() {
             userEl.appendChild(nameEl);
             usersList.appendChild(userEl);
         });
+        
         onlineCount.textContent = count;
     }, (error) => {
-        console.error("Firestore user listener error:", error);
+        console.error("Error fetching online users:", error);
     });
 }
 
@@ -122,8 +144,8 @@ function listenToMessages() {
     if (unsubscribeMessages) {
         unsubscribeMessages();
     }
-    messagesList.innerHTML = '';
     
+    messagesList.innerHTML = '';
     const q = query(collection(db, `messages_${currentChannel}`), orderBy('createdAt', 'asc'));
     
     unsubscribeMessages = onSnapshot(q, (snapshot) => {
@@ -135,7 +157,7 @@ function listenToMessages() {
         });
         scrollToBottom();
     }, (error) => {
-        console.error("Firestore message listener error:", error);
+        console.error("Error fetching messages:", error);
     });
 }
 
@@ -145,7 +167,6 @@ function appendMessage(data) {
     
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
-    
     const avatarImg = document.createElement('img');
     avatarImg.src = 'favicon.ico';
     avatarImg.alt = 'avatar';
@@ -157,11 +178,9 @@ function appendMessage(data) {
     
     const header = document.createElement('div');
     header.className = 'message-header';
-    
     const author = document.createElement('span');
     author.className = 'message-author';
     author.textContent = data.user || 'Anonymous';
-    
     const time = document.createElement('span');
     time.className = 'message-timestamp';
     time.textContent = formatTime(data.createdAt);
@@ -178,7 +197,6 @@ function appendMessage(data) {
     
     msgDiv.appendChild(avatar);
     msgDiv.appendChild(content);
-    
     messagesList.appendChild(msgDiv);
 }
 
@@ -197,10 +215,7 @@ function sendMessage() {
     };
     
     messageInput.value = '';
-    
-    addDoc(collection(db, `messages_${currentChannel}`), msgData).catch((error) => {
-        console.error("Failed to send message:", error);
-    });
+    addDoc(collection(db, `messages_${currentChannel}`), msgData).catch(() => {});
 }
 
 channelElements.forEach(el => {
@@ -216,6 +231,3 @@ messageInput.addEventListener('keydown', (e) => {
         sendMessage();
     }
 });
-
-initializeUser();
-switchChannel('general');
