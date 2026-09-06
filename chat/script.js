@@ -20,6 +20,7 @@ let currentChannel = "general";
 let currentUid = "";
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
+let presenceInterval = null;
 
 const channelElements = document.querySelectorAll('.channel-item');
 const currentChannelTitle = document.getElementById('current-channel-title');
@@ -64,12 +65,20 @@ onAuthStateChanged(auth, async (user) => {
 function registerUserPresence() {
     const userRef = doc(db, 'online_users', currentUser);
     
-    setDoc(userRef, {
-        username: currentUser,
-        joinedAt: serverTimestamp()
-    }).catch(() => {});
+    const sendHeartbeat = () => {
+        setDoc(userRef, {
+            username: currentUser,
+            lastSeen: Date.now()
+        }, { merge: true }).catch(() => {});
+    };
+
+    sendHeartbeat();
+    
+    if (presenceInterval) clearInterval(presenceInterval);
+    presenceInterval = setInterval(sendHeartbeat, 5000);
 
     window.addEventListener('beforeunload', () => {
+        clearInterval(presenceInterval);
         deleteDoc(userRef);
     });
 
@@ -77,7 +86,7 @@ function registerUserPresence() {
 }
 
 function listenToOnlineUsers() {
-    const usersQuery = query(collection(db, 'online_users'), orderBy('joinedAt', 'desc'));
+    const usersQuery = query(collection(db, 'online_users'), orderBy('lastSeen', 'desc'));
     
     if (unsubscribeUsers) {
         unsubscribeUsers();
@@ -86,10 +95,17 @@ function listenToOnlineUsers() {
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
         usersList.innerHTML = '';
         let count = 0;
+        const now = Date.now();
         
         snapshot.forEach((docSnap) => {
-            count++;
             const userData = docSnap.data();
+            const lastSeen = userData.lastSeen;
+            
+            if (!lastSeen || (now - lastSeen) > 15000) {
+                return;
+            }
+            
+            count++;
             const userEl = document.createElement('div');
             userEl.className = 'user-item';
             
