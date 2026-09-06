@@ -98,7 +98,7 @@ function listenToOnlineUsers() {
             const avatarEl = document.createElement('div');
             avatarEl.className = 'user-item-avatar';
             const iconImg = document.createElement('img');
-            iconImg.src = 'favicon.ico';
+            iconImg.src = '../favicon.ico';
             iconImg.alt = 'user';
             iconImg.className = 'avatar-favicon';
             avatarEl.appendChild(iconImg);
@@ -168,7 +168,7 @@ function appendMessage(data) {
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
     const avatarImg = document.createElement('img');
-    avatarImg.src = 'favicon.ico';
+    avatarImg.src = '../favicon.ico';
     avatarImg.alt = 'avatar';
     avatarImg.className = 'avatar-favicon';
     avatar.appendChild(avatarImg);
