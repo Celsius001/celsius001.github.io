@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="settings-overlay-backdrop" id="backdrop">
+    <div class="settings-modal" id="modal">
+        <aside class="settings-sidebar">
+            <div class="sidebar-brand">celsius v1</div>
+            <nav class="settings-nav">
+                <button class="nav-item active" data-target="appearance-section">Appearance</button>
+                <button class="nav-item" data-target="tos-section" data-file="../tos.html">TOS</button>
+                <button class="nav-item" data-target="privacy-section" data-file="../privacy.html">Privacy Policy</button>
+                <button class="nav-item" data-target="legal-section" data-file="../legal.html">Legal</button>
+                <button class="nav-item" data-target="about-section" data-file="../about.html">About</button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="version-main">celsius v1.0.0</div>
+                <div class="version-sub">stable release</div>
+            </div>
+        </aside>
+        
+        <main class="settings-main">
+            <header class="content-header">
+                <h2 id="section-title">Appearance</h2>
+                <button class="close-btn" id="closeBtn">&times;</button>
+            </header>
+            <div class="content-body" id="contentBody">
+                <div class="settings-section active" id="appearance-section">
+                    <h3 class="subsection-title">Themes & Biomes</h3>
+                    <div class="themes-grid" id="themesGrid"></div>
+
+                    <h3 class="subsection-title" style="margin-top: 32px;">Custom Palette Builder</h3>
+                    <p class="section-desc">Design your own theme layout instantly.</p>
+                    <div class="custom-builder-container">
+                        <div class="color-picker-group">
+                            <label>Background</label>
+                            <input type="color" id="customBg" value="#111111">
+                        </div>
+                        <div class="color-picker-group">
+                            <label>Text Color</label>
+                            <input type="color" id="customText" value="#ffffff">
+                        </div>
+                        <div class="color-picker-group">
+                            <label>Accent Color</label>
+                            <input type="color" id="customAccent" value="#38bdf8">
+                        </div>
+                        <div class="color-picker-group">
+                            <label>Panel Color</label>
+                            <input type="color" id="customPanel" value="#1c1c1c">
+                        </div>
+                        <div class="color-picker-group">
+                            <label>Sidebar Color</label>
+                            <input type="color" id="customSidebar" value="#080808">
+                        </div>
+                        <button class="save-custom-btn" id="saveCustomBtn">Apply Custom Theme</button>
+                    </div>
+
+                    <h3 class="subsection-title" style="margin-top: 32px;">Background Presets</h3>
+                    <div class="presets-grid" id="presetsGrid"></div>
+                </div>
+
+                <div class="settings-section html-fetch-pane" id="tos-section"></div>
+                <div class="settings-section html-fetch-pane" id="privacy-section"></div>
+                <div class="settings-section html-fetch-pane" id="legal-section"></div>
+                <div class="settings-section html-fetch-pane" id="about-section"></div>
+            </div>
+        </main>
+    </div>
+</div>
+<script type="module" src="script.js"></script>
+</body>
+</html>
