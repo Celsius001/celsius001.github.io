@@ -117,10 +117,60 @@ body {
     color: #ffffff;
 }
 
+.profile-header {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+}
+
+@media (max-width: 600px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+    }
+    .settings-form {
+        width: 100%;
+    }
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: #0f0f0f;
+    border: 1px solid #222222;
+    overflow: hidden;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.avatar-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+}
+
 .settings-form {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 1;
 }
 
 .form-group {
