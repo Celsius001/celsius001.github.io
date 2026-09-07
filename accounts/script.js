@@ -31,8 +31,7 @@ const profileAvatar = document.getElementById('profileAvatar');
 
 let currentUser = null;
 let unsubUser = null;
-let unsubGlobalChat = null;
-let unsubMessages = null;
+let unsubChannels = [];
 
 backHomeBtn.addEventListener('click', () => {
     window.top.location.href = "../home/index.html";
@@ -73,35 +72,35 @@ function setupDataFeed(user) {
         statGameTime.textContent = `${h}h ${m}m`;
     });
 
-    const processChatSnapshots = (snapshots) => {
-        let count = 0;
-        snapshots.forEach(snap => {
-            if (!snap.empty) {
-                snap.forEach(d => {
+    const channels = ["general", "development", "design", "off-topic", "music", "gaming", "lounge"];
+    let channelDocs = {};
+
+    const evaluateTotalMessages = () => {
+        let total = 0;
+        Object.values(channelDocs).forEach(docs => {
+            if (docs) {
+                docs.forEach(d => {
                     const data = d.data();
-                    const sender = data.uid || data.userId || data.senderId || data.sender;
-                    const name = data.username || data.name || data.displayName;
-                    if (sender === user.uid || sender === user.email || name === user.displayName) {
-                        count++;
+                    if (data.user && (data.user === user.displayName || data.user === user.email)) {
+                        total++;
                     }
                 });
             }
         });
-        statMessages.textContent = count;
+        statMessages.textContent = total;
     };
 
-    let chatDocs = [];
-    let messagesDocs = [];
+    unsubChannels.forEach(unsub => unsub());
+    unsubChannels = [];
 
-    unsubGlobalChat = onSnapshot(collection(db, "chat"), (snapshot) => {
-        chatDocs = snapshot.docs;
-        processChatSnapshots([chatDocs, messagesDocs]);
-    }, () => {});
-
-    unsubMessages = onSnapshot(collection(db, "messages"), (snapshot) => {
-        messagesDocs = snapshot.docs;
-        processChatSnapshots([chatDocs, messagesDocs]);
-    }, () => {});
+    channels.forEach(ch => {
+        const ref = collection(db, `messages_${ch}`);
+        const unsub = onSnapshot(ref, (snapshot) => {
+            channelDocs[ch] = snapshot.docs;
+            evaluateTotalMessages();
+        }, () => {});
+        unsubChannels.push(unsub);
+    });
 }
 
 function processImageFile(file) {
@@ -169,6 +168,7 @@ profileForm.addEventListener('submit', async (e) => {
     try {
         await updateProfile(currentUser, { displayName: nameVal });
         await setDoc(doc(db, "users", currentUser.uid), { username: nameVal }, { merge: true });
+        localStorage.setItem('celsius_username', nameVal);
         alert("Username updated successfully!");
     } catch (err) {
         alert("Failed to update username.");
@@ -236,8 +236,7 @@ deleteAccountBtn.addEventListener('click', async () => {
 
 logoutBtn.addEventListener('click', async () => {
     if (unsubUser) unsubUser();
-    if (unsubGlobalChat) unsubGlobalChat();
-    if (unsubMessages) unsubMessages();
+    unsubChannels.forEach(unsub => unsub());
     try {
         await signOut(auth);
     } catch (err) {}
