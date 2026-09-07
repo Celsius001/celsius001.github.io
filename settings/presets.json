@@ -1,5 +1,6 @@
 {
   "presets": [
+    { "name": "Default", "file": "background.png" },
     { "name": "Opaline Blue Dark", "file": "Opaline_blue_DM.jpg" },
     { "name": "Opaline Blue Light", "file": "Opaline_blue_LM.jpg" },
     { "name": "Opaline Green Dark", "file": "Opaline_green_DM.jpg" },
