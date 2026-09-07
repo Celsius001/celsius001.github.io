@@ -1,0 +1,14 @@
+{
+  "presets": [
+    { "name": "Opaline Blue Dark", "file": "Opaline_blue_DM.jpg" },
+    { "name": "Opaline Blue Light", "file": "Opaline_blue_LM.jpg" },
+    { "name": "Opaline Green Dark", "file": "Opaline_green_DM.jpg" },
+    { "name": "Opaline Green Light", "file": "Opaline_green_LM.jpg" },
+    { "name": "Opaline Orange Dark", "file": "Opaline_orange_DM.jpg" },
+    { "name": "Opaline Orange Light", "file": "Opaline_orange_LM.jpg" },
+    { "name": "Purple Opaline Dark", "file": "Purple Opaline_DM.jpg" },
+    { "name": "Purple Opaline Light", "file": "Purple Opaline_LM.jpg" },
+    { "name": "Yellow Opaline Dark", "file": "Yellow Opaline_DM.jpg" },
+    { "name": "Yellow Opaline Light", "file": "Yellow Opaline_LM.jpg" }
+  ]
+}
