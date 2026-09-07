@@ -33,6 +33,34 @@ let currentUser = null;
 let unsubUser = null;
 let unsubChannels = [];
 
+function applyCelsiusSettings() {
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem('celsius_theme');
+    
+    if (savedTheme) {
+        try {
+            const theme = JSON.parse(savedTheme);
+            root.style.setProperty('--bg-main', theme.bg);
+            root.style.setProperty('--text-primary', theme.text);
+            root.style.setProperty('--accent-color', theme.accent);
+            root.style.setProperty('--bg-panel', theme.panel);
+            root.style.setProperty('--bg-sidebar', theme.sidebar);
+            document.body.style.backgroundColor = theme.bg;
+            document.body.style.color = theme.text;
+        } catch (e) {}
+    }
+}
+
+applyCelsiusSettings();
+
+window.addEventListener('message', (event) => {
+    if (event.data) {
+        if (event.data.action === 'updateTheme' || event.data.action === 'updateSettings') {
+            applyCelsiusSettings();
+        }
+    }
+});
+
 backHomeBtn.addEventListener('click', () => {
     window.top.location.href = "../home/index.html";
 });
