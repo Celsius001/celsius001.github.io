@@ -36,17 +36,26 @@
 
             <div class="settings-card">
                 <h2>Profile Information</h2>
-                <form id="profileForm" class="settings-form">
-                    <div class="form-group">
-                        <label for="userEmail">Email Address</label>
-                        <input type="email" id="userEmail" disabled />
+                <div class="profile-header">
+                    <div class="avatar-wrapper" id="avatarWrapper">
+                        <img id="profileAvatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E" alt="Avatar">
+                        <div class="avatar-overlay">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        </div>
+                        <input type="file" id="avatarInput" accept="image/png, image/jpeg, image/gif, image/webp" hidden>
                     </div>
-                    <div class="form-group">
-                        <label for="usernameInput">Username</label>
-                        <input type="text" id="usernameInput" placeholder="Enter new username" required />
-                    </div>
-                    <button type="submit" class="btn">Update Username</button>
-                </form>
+                    <form id="profileForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="userEmail">Email Address</label>
+                            <input type="email" id="userEmail" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label for="usernameInput">Username</label>
+                            <input type="text" id="usernameInput" placeholder="Enter new username" required />
+                        </div>
+                        <button type="submit" class="btn">Update Username</button>
+                    </form>
+                </div>
             </div>
 
             <div class="settings-card">
@@ -71,6 +80,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js"></script>
     <script src="script.js" type="module"></script>
 </body>
 </html>
