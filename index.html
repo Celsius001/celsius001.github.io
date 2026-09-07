@@ -141,8 +141,15 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } 
-        from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { 
+            getAuth, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            updateProfile,
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -156,19 +163,28 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' }); 
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.location.href = "home/index.html";
+            }
+        });
 
         document.getElementById('google-signin').addEventListener('click', () => {
             signInWithPopup(auth, provider)
                 .then((result) => {
                     window.location.href = "home/index.html";
                 }).catch((error) => {
-                    alert("Error: " + error.message);
+                    if (error.code !== 'auth/popup-closed-by-user') {
+                        alert("Error: " + error.message);
+                    }
                 });
         });
 
         document.getElementById('email-signin').addEventListener('click', () => {
-            const username = document.getElementById('username').value;
-            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
             if(!email || !password) {
@@ -184,7 +200,6 @@
                         }).then(() => {
                             window.location.href = "home/index.html";
                         }).catch((error) => {
-                            console.error("Error updating profile:", error);
                             window.location.href = "home/index.html";
                         });
                     } else {
