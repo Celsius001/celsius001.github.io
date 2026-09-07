@@ -39,6 +39,14 @@ window.addEventListener('message', (event) => {
     if (event.data) {
         if (event.data.action === 'updateSettings') {
             applyCelsiusSettings();
+            if (appFrame && appFrame.contentWindow) {
+                try {
+                    appFrame.contentWindow.postMessage({ 
+                        action: 'updateTheme', 
+                        theme: JSON.parse(localStorage.getItem('celsius_theme')) 
+                    }, '*');
+                } catch (e) {}
+            }
         } else if (event.data.action === 'closeSettings') {
             const activeTab = document.querySelector('.tab.active');
             if (activeTab && activeTab.dataset.url === 'celsius://settings') {
