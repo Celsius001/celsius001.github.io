@@ -150,8 +150,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function applySettings() {
+        const savedTheme = localStorage.getItem('celsius_theme');
+        if (savedTheme) {
+            try {
+                const theme = JSON.parse(savedTheme);
+                const root = document.documentElement;
+                root.style.setProperty('--bg-main', theme.bg);
+                root.style.setProperty('--text-primary', theme.text);
+                root.style.setProperty('--accent-color', theme.accent);
+                root.style.setProperty('--bg-panel', theme.panel);
+                root.style.setProperty('--bg-sidebar', theme.sidebar);
+                document.body.style.backgroundColor = theme.bg;
+                document.body.style.color = theme.text;
+            } catch (e) {}
+        }
         const targetWindow = window.parent && window.parent !== window ? window.parent : window;
-        targetWindow.postMessage({ action: 'updateSettings' }, '*');
+        targetWindow.postMessage({ action: 'updateSettings', theme: JSON.parse(localStorage.getItem('celsius_theme')) }, '*');
         const preset = localStorage.getItem('celsius_preset');
         if (preset) {
             document.body.style.backgroundImage = `url('../preset/${preset}')`;
@@ -161,5 +175,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentPreset = localStorage.getItem('celsius_preset');
     if (currentPreset) {
         document.body.style.backgroundImage = `url('../preset/${currentPreset}')`;
+    }
+
+    const savedThemeInit = localStorage.getItem('celsius_theme');
+    if (savedThemeInit) {
+        try {
+            const theme = JSON.parse(savedThemeInit);
+            const root = document.documentElement;
+            root.style.setProperty('--bg-main', theme.bg);
+            root.style.setProperty('--text-primary', theme.text);
+            root.style.setProperty('--accent-color', theme.accent);
+            root.style.setProperty('--bg-panel', theme.panel);
+            root.style.setProperty('--bg-sidebar', theme.sidebar);
+            document.body.style.backgroundColor = theme.bg;
+            document.body.style.color = theme.text;
+        } catch (e) {}
+    }
+});
+
+window.addEventListener('message', (event) => {
+    if (event.data && (event.data.action === 'updateTheme' || event.data.action === 'updateSettings')) {
+        const savedTheme = localStorage.getItem('celsius_theme');
+        if (savedTheme) {
+            try {
+                const theme = JSON.parse(savedTheme);
+                const root = document.documentElement;
+                root.style.setProperty('--bg-main', theme.bg);
+                root.style.setProperty('--text-primary', theme.text);
+                root.style.setProperty('--accent-color', theme.accent);
+                root.style.setProperty('--bg-panel', theme.panel);
+                root.style.setProperty('--bg-sidebar', theme.sidebar);
+                document.body.style.backgroundColor = theme.bg;
+                document.body.style.color = theme.text;
+            } catch (e) {}
+        }
+        const preset = localStorage.getItem('celsius_preset');
+        if (preset) {
+            document.body.style.backgroundImage = `url('../preset/${preset}')`;
+        }
     }
 });
