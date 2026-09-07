@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, updatePassword, updateProfile, deleteUser, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -15,7 +14,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 const userEmailInput = document.getElementById('userEmail');
 const usernameInput = document.getElementById('usernameInput');
@@ -29,11 +27,17 @@ const statGameHours = document.getElementById('statGameHours');
 const avatarWrapper = document.getElementById('avatarWrapper');
 const avatarInput = document.getElementById('avatarInput');
 const profileAvatar = document.getElementById('profileAvatar');
+const backHomeLink = document.getElementById('backHomeLink');
 
 let currentUser = null;
 let unsubUser = null;
 let unsubChats = null;
-let chatUnsubs = [];
+let activeMessageListeners = [];
+
+backHomeLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.top.location.href = "../home/index.html";
+});
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -45,7 +49,7 @@ onAuthStateChanged(auth, (user) => {
         }
         setupRealtimeData(user.uid);
     } else {
-        window.location.href = "../home/index.html";
+        window.top.location.href = "../home/index.html";
     }
 });
 
@@ -57,34 +61,42 @@ function setupRealtimeData(uid) {
             if (data.gameHours) gameHours = data.gameHours;
             if (data.photoURL) profileAvatar.src = data.photoURL;
         }
-        const h = Math.floor(gameHours);
-        const m = Math.round((gameHours - h) * 60);
+        const totalMinutes = Math.round(gameHours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
         statGameHours.textContent = `${h} hours ${m} minutes`;
     });
 
     const chatsRef = collection(db, "users", uid, "chats");
     unsubChats = onSnapshot(chatsRef, (chatsSnap) => {
-        chatUnsubs.forEach(unsub => unsub());
-        chatUnsubs = [];
+        activeMessageListeners.forEach(unsub => unsub());
+        activeMessageListeners = [];
 
         if (chatsSnap.empty) {
             statMessages.textContent = "0";
             return;
         }
 
-        let chatCounts = new Array(chatsSnap.docs.length).fill(0);
+        let messageCounts = {};
 
-        chatsSnap.docs.forEach((chatDoc, index) => {
-            const msgsRef = collection(db, "users", uid, "chats", chatDoc.id, "messages");
+        chatsSnap.docs.forEach((chatDoc) => {
+            const chatId = chatDoc.id;
+            messageCounts[chatId] = 0;
+            const msgsRef = collection(db, "users", uid, "chats", chatId, "messages");
             const unsubMsg = onSnapshot(msgsRef, (msgsSnap) => {
                 let count = 0;
                 msgsSnap.forEach(m => {
                     if (m.data().sender === 'user') count++;
                 });
-                chatCounts[index] = count;
-                statMessages.textContent = chatCounts.reduce((a, b) => a + b, 0);
+                messageCounts[chatId] = count;
+                
+                let total = 0;
+                for (let id in messageCounts) {
+                    total += messageCounts[id];
+                }
+                statMessages.textContent = total;
             });
-            chatUnsubs.push(unsubMsg);
+            activeMessageListeners.push(unsubMsg);
         });
     });
 }
@@ -93,7 +105,7 @@ avatarWrapper.addEventListener('click', () => {
     avatarInput.click();
 });
 
-avatarInput.addEventListener('change', async (e) => {
+avatarInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file || !currentUser) return;
 
@@ -102,18 +114,18 @@ avatarInput.addEventListener('change', async (e) => {
         return;
     }
 
-    try {
-        const storageRef = ref(storage, `avatars/${currentUser.uid}/${file.name}`);
-        await uploadBytes(storageRef, file);
-        const photoURL = await getDownloadURL(storageRef);
-
-        await updateProfile(currentUser, { photoURL });
-        await setDoc(doc(db, "users", currentUser.uid), { photoURL }, { merge: true });
-        
-        profileAvatar.src = photoURL;
-    } catch (err) {
-        alert("Failed to upload image.");
-    }
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const photoURL = event.target.result;
+        try {
+            await updateProfile(currentUser, { photoURL });
+            await setDoc(doc(db, "users", currentUser.uid), { photoURL }, { merge: true });
+            profileAvatar.src = photoURL;
+        } catch (err) {
+            alert("Failed to update profile picture.");
+        }
+    };
+    reader.readAsDataURL(file);
 });
 
 profileForm.addEventListener('submit', async (e) => {
@@ -172,7 +184,7 @@ deleteAccountBtn.addEventListener('click', async () => {
 
         await deleteDoc(doc(db, "users", uid));
         await deleteUser(currentUser);
-        window.location.href = "../home/index.html";
+        window.top.location.href = "../home/index.html";
     } catch (err) {
         alert("Failed to delete account. You may need to log out and log back in first.");
     }
@@ -181,9 +193,9 @@ deleteAccountBtn.addEventListener('click', async () => {
 logoutBtn.addEventListener('click', async () => {
     if (unsubUser) unsubUser();
     if (unsubChats) unsubChats();
-    chatUnsubs.forEach(u => u());
+    activeMessageListeners.forEach(u => u());
     try {
         await signOut(auth);
-        window.location.href = "../home/index.html";
+        window.top.location.href = "../home/index.html";
     } catch (err) {}
 });
