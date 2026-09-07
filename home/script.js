@@ -7,6 +7,48 @@ const urlInput = document.getElementById('urlInput');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const reloadBtn = document.getElementById('reloadBtn');
 
+function applyCelsiusSettings() {
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem('celsius_theme');
+    
+    if (savedTheme) {
+        try {
+            const theme = JSON.parse(savedTheme);
+            root.style.setProperty('--bg-main', theme.bg);
+            root.style.setProperty('--text-primary', theme.text);
+            root.style.setProperty('--accent-color', theme.accent);
+            root.style.setProperty('--bg-panel', theme.panel);
+            root.style.setProperty('--bg-sidebar', theme.sidebar);
+            document.body.style.backgroundColor = theme.bg;
+            document.body.style.color = theme.text;
+        } catch (e) {}
+    }
+
+    const currentPreset = localStorage.getItem('celsius_preset');
+    if (currentPreset) {
+        document.body.style.backgroundImage = `url('../preset/${currentPreset}')`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+        document.body.style.backgroundAttachment = 'fixed';
+    }
+}
+
+applyCelsiusSettings();
+
+window.addEventListener('message', (event) => {
+    if (event.data) {
+        if (event.data.action === 'updateSettings') {
+            applyCelsiusSettings();
+        } else if (event.data.action === 'closeSettings') {
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab && activeTab.dataset.url === 'celsius://settings') {
+                const closeBtn = activeTab.querySelector('.close-tab');
+                if (closeBtn) closeBtn.click();
+            }
+        }
+    }
+});
+
 function getIconSrc(url) {
     if (!url.startsWith('celsius://')) return '../favicon.ico';
     let appName = url.replace('celsius://', '');
@@ -143,16 +185,7 @@ sidebarLinks.forEach(link => {
         const formattedTitle = appName.charAt(0).toUpperCase() + appName.slice(1);
         const finalTitle = appName === 'home' ? 'Celsius Home' : formattedTitle;
         
-        const activeTab = document.querySelector('.tab.active');
-        
-        if (activeTab) {
-            activeTab.querySelector('.tab-title').textContent = finalTitle;
-            activeTab.querySelector('.tab-icon').src = getIconSrc(appUrl);
-            activeTab.dataset.url = appUrl;
-            updateContent(appUrl);
-        } else {
-            createTab(finalTitle, appUrl);
-        }
+        createTab(finalTitle, appUrl);
     });
 });
 
