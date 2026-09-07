@@ -49,7 +49,7 @@ onAuthStateChanged(auth, (user) => {
         }
         setupDataFeed(user);
     } else {
-        window.top.location.href = "../index.html";
+        window.top.location.replace("../index.html");
     }
 });
 
@@ -112,7 +112,7 @@ function processImageFile(file) {
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
-                const max = 150;
+                const max = 800;
                 if (width > height) {
                     if (width > max) {
                         height *= max / width;
@@ -128,7 +128,7 @@ function processImageFile(file) {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.85));
+                resolve(canvas.toDataURL('image/jpeg', 0.95));
             };
             img.onerror = reject;
             img.src = e.target.result;
@@ -212,7 +212,13 @@ deleteAccountBtn.addEventListener('click', async () => {
             await deleteDoc(doc(db, "users", uid));
             await deleteUser(currentUser);
         } catch (err) {}
-        window.top.location.href = "../index.html";
+        
+        localStorage.clear();
+        sessionStorage.clear();
+        try {
+            await signOut(auth);
+        } catch (e) {}
+        window.top.location.replace("../index.html");
     };
 
     try {
@@ -237,8 +243,10 @@ deleteAccountBtn.addEventListener('click', async () => {
 logoutBtn.addEventListener('click', async () => {
     if (unsubUser) unsubUser();
     unsubChannels.forEach(unsub => unsub());
+    localStorage.clear();
+    sessionStorage.clear();
     try {
         await signOut(auth);
     } catch (err) {}
-    window.top.location.href = "../index.html";
+    window.top.location.replace("../index.html");
 });
