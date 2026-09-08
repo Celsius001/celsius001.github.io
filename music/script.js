@@ -55,7 +55,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-const API_BASE = "https://celsiusmusic-backend.vercel.app/api/";
+const API_BASE = "https://celsiusmusic-backend.vercel.app/api";
 const mainContentArea = document.getElementById('mainContentArea');
 let currentAudio = new Audio();
 let isPlaying = false;
