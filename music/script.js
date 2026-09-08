@@ -59,27 +59,6 @@ const API_BASE = "https://celsiusmusic-backend.vercel.app/api";
 const mainContentArea = document.getElementById('mainContentArea');
 let currentAudio = new Audio();
 let isPlaying = false;
-let currentProvider = 'deezer';
-
-const headerRight = document.querySelector('.header-right');
-const providerBtn = document.createElement('button');
-providerBtn.id = 'providerToggleBtn';
-providerBtn.className = 'provider-btn';
-providerBtn.textContent = 'Provider: Deezer';
-headerRight.insertBefore(providerBtn, headerRight.firstChild);
-
-providerBtn.addEventListener('click', () => {
-    currentProvider = currentProvider === 'deezer' ? 'spotify' : 'deezer';
-    providerBtn.textContent = `Provider: ${currentProvider.charAt(0).toUpperCase() + currentProvider.slice(1)}`;
-    const activeNav = document.querySelector('.sidebar-nav .nav-item.active');
-    if (activeNav && activeNav.textContent.includes('Search')) {
-        const query = searchInput.value.trim();
-        if (query) renderSearchView(query);
-        else renderSearchView();
-    } else {
-        renderHomeView();
-    }
-});
 
 function playTrack(track) {
     if (!track.audioUrl) {
@@ -158,7 +137,7 @@ async function fetchCategoryTracks(categoryName, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     try {
-        const response = await fetch(`${API_BASE}/tracks?category=${encodeURIComponent(categoryName)}&provider=${currentProvider}`);
+        const response = await fetch(`${API_BASE}/tracks?category=${encodeURIComponent(categoryName)}`);
         if (!response.ok) throw new Error();
         const data = await response.json();
         container.innerHTML = '';
