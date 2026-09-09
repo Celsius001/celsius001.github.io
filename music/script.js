@@ -133,6 +133,28 @@ function renderPlaylistView(playlistName) {
     `;
 }
 
+function fetchDeezerTracks(query) {
+    return new Promise((resolve, reject) => {
+        const callbackName = `deezerCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const script = document.createElement('script');
+        const cleanup = () => {
+            delete window[callbackName];
+            script.remove();
+        };
+
+        window[callbackName] = (response) => {
+            cleanup();
+            resolve(response);
+        };
+        script.onerror = () => {
+            cleanup();
+            reject(new Error('Deezer request failed'));
+        };
+        script.src = `https://api.deezer.com/search?q=${encodeURIComponent(query)}&output=jsonp&callback=${callbackName}`;
+        document.head.appendChild(script);
+    });
+}
+
 async function fetchCategoryTracks(categoryName, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -164,9 +186,7 @@ async function fetchCategoryTracks(categoryName, containerId) {
             if (categoryName === 'hip-hop') query = 'hip hop';
             if (categoryName === 'curated') query = 'trending';
 
-            const deezerResponse = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}`);
-            if (!deezerResponse.ok) throw new Error('Deezer request failed');
-            const deezerData = await deezerResponse.json();
+            const deezerData = await fetchDeezerTracks(query);
             const data = (deezerData.data || []).map(track => ({
                 id: track.id,
                 title: track.title,
