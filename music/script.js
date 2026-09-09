@@ -138,10 +138,11 @@ async function fetchCategoryTracks(categoryName, containerId) {
     if (!container) return;
     try {
         const response = await fetch(`${API_BASE}/tracks?category=${encodeURIComponent(categoryName)}`);
-        if (!response.ok) throw new Error();
+        if (!response.ok) throw new Error('Backend request failed');
         const data = await response.json();
+        if (!Array.isArray(data)) throw new Error('Invalid backend response');
         container.innerHTML = '';
-        if (Array.isArray(data) && data.length > 0) {
+        if (data.length > 0) {
             data.forEach(track => {
                 const card = document.createElement('div');
                 card.className = 'music-card';
@@ -157,7 +158,42 @@ async function fetchCategoryTracks(categoryName, containerId) {
             container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">No tracks found.</p>`;
         }
     } catch (error) {
-        container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">Failed to load tracks.</p>`;
+        try {
+            let query = categoryName;
+            if (categoryName === 'top-hits') query = 'chart hits';
+            if (categoryName === 'hip-hop') query = 'hip hop';
+            if (categoryName === 'curated') query = 'trending';
+
+            const deezerResponse = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}`);
+            if (!deezerResponse.ok) throw new Error('Deezer request failed');
+            const deezerData = await deezerResponse.json();
+            const data = (deezerData.data || []).map(track => ({
+                id: track.id,
+                title: track.title,
+                artist: track.artist.name,
+                thumbnail: track.album.cover_medium,
+                audioUrl: track.preview
+            }));
+
+            container.innerHTML = '';
+            if (data.length > 0) {
+                data.forEach(track => {
+                    const card = document.createElement('div');
+                    card.className = 'music-card';
+                    card.innerHTML = `
+                        <div class="card-art" style="background-image: url('${track.thumbnail || ''}')"></div>
+                        <div class="card-title">${track.title}</div>
+                        <div class="card-artist">${track.artist}</div>
+                    `;
+                    card.addEventListener('click', () => playTrack(track));
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">No tracks found.</p>`;
+            }
+        } catch (fallbackError) {
+            container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">Failed to load tracks.</p>`;
+        }
     }
 }
 
