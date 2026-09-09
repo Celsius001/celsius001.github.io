@@ -13,30 +13,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-function applyCelsiusSettings() {
-    const root = document.documentElement;
-    const savedTheme = localStorage.getItem('celsius_theme');
-    if (savedTheme) {
-        try {
-            const theme = JSON.parse(savedTheme);
-            root.style.setProperty('--bg-main', theme.bg || '#000000');
-            root.style.setProperty('--bg-panel', theme.panel || '#121212');
-            root.style.setProperty('--text-primary', theme.text || '#ffffff');
-            root.style.setProperty('--accent-color', theme.accent || '#ffffff');
-            document.body.style.backgroundColor = theme.bg || '#000000';
-            document.body.style.color = theme.text || '#ffffff';
-        } catch (e) {}
-    }
-}
-
-applyCelsiusSettings();
-
-window.addEventListener('message', (event) => {
-    if (event.data && (event.data.action === 'updateTheme' || event.data.action === 'updateSettings')) {
-        applyCelsiusSettings();
-    }
-});
-
 const headerUserName = document.getElementById('headerUserName');
 const headerAvatar = document.getElementById('headerAvatar');
 const playerAvatar = document.getElementById('playerAvatar');
@@ -55,7 +31,6 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-const API_BASE = "https://celsiusmusic-backend.vercel.app/api";
 const mainContentArea = document.getElementById('mainContentArea');
 let currentAudio = new Audio();
 let isPlaying = false;
@@ -159,10 +134,20 @@ async function fetchCategoryTracks(categoryName, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     try {
-        const response = await fetch(`${API_BASE}/tracks?category=${encodeURIComponent(categoryName)}`);
-        if (!response.ok) throw new Error('Backend request failed');
-        const data = await response.json();
-        if (!Array.isArray(data)) throw new Error('Invalid backend response');
+        let query = categoryName;
+        if (categoryName === 'top-hits') query = 'chart hits';
+        if (categoryName === 'hip-hop') query = 'hip hop';
+        if (categoryName === 'curated') query = 'trending';
+
+        const deezerData = await fetchDeezerTracks(query);
+        const data = (deezerData.data || []).map(track => ({
+            id: track.id,
+            title: track.title,
+            artist: track.artist.name,
+            thumbnail: track.album.cover_medium,
+            audioUrl: track.preview
+        }));
+
         container.innerHTML = '';
         if (data.length > 0) {
             data.forEach(track => {
@@ -180,40 +165,7 @@ async function fetchCategoryTracks(categoryName, containerId) {
             container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">No tracks found.</p>`;
         }
     } catch (error) {
-        try {
-            let query = categoryName;
-            if (categoryName === 'top-hits') query = 'chart hits';
-            if (categoryName === 'hip-hop') query = 'hip hop';
-            if (categoryName === 'curated') query = 'trending';
-
-            const deezerData = await fetchDeezerTracks(query);
-            const data = (deezerData.data || []).map(track => ({
-                id: track.id,
-                title: track.title,
-                artist: track.artist.name,
-                thumbnail: track.album.cover_medium,
-                audioUrl: track.preview
-            }));
-
-            container.innerHTML = '';
-            if (data.length > 0) {
-                data.forEach(track => {
-                    const card = document.createElement('div');
-                    card.className = 'music-card';
-                    card.innerHTML = `
-                        <div class="card-art" style="background-image: url('${track.thumbnail || ''}')"></div>
-                        <div class="card-title">${track.title}</div>
-                        <div class="card-artist">${track.artist}</div>
-                    `;
-                    card.addEventListener('click', () => playTrack(track));
-                    container.appendChild(card);
-                });
-            } else {
-                container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">No tracks found.</p>`;
-            }
-        } catch (fallbackError) {
-            container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">Failed to load tracks.</p>`;
-        }
+        container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">Failed to load tracks.</p>`;
     }
 }
 
@@ -269,6 +221,24 @@ playPauseBtn.addEventListener('click', () => {
         playIcon.classList.remove('hidden');
     }
 });
+
+currentAudio.addEventListener('timeupdate', () => {
+    if (currentAudio.duration) {
+        const progressPercent = (currentAudio.currentTime / currentAudio.duration) * 100;
+        const fill = document.getElementById('progressBarFill');
+        if (fill) fill.style.width = `${progressPercent}%`;
+    }
+});
+
+const progressBarContainer = document.getElementById('progressBarContainer');
+if (progressBarContainer) {
+    progressBarContainer.addEventListener('click', (e) => {
+        if (!currentAudio.duration) return;
+        const rect = progressBarContainer.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        currentAudio.currentTime = pos * currentAudio.duration;
+    });
+}
 
 const favoriteBtn = document.getElementById('favoriteBtn');
 favoriteBtn.addEventListener('click', () => {
