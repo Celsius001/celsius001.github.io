@@ -64,6 +64,31 @@ function getGameUrl(gameUrl) {
         return `https://cdn.jsdelivr.net/gh/gmshelf/${activeLibrary}/${gameUrl.replace(/^\/+/, '')}`;
 }
 
+async function openGame(gameUrl) {
+    const resolvedUrl = getGameUrl(gameUrl);
+
+    if (/^https?:\/\//i.test(gameUrl)) {
+        window.location.href = resolvedUrl;
+        return;
+    }
+
+    const response = await fetch(resolvedUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to load game: ${response.status}`);
+    }
+
+    const html = await response.text();
+    const baseUrl = new URL('.', resolvedUrl).href;
+    const gameDocument = html.replace(
+        /<head(\s[^>]*)?>/i,
+        `$&\n<base href="${baseUrl}">`
+    );
+
+    document.open();
+    document.write(gameDocument);
+    document.close();
+}
+
 async function loadLibrary(libName) {
     activeLibrary = libName;
     currentLibraryTitle.textContent = `${libName.toUpperCase()} GAMES`;
@@ -151,7 +176,9 @@ function renderGames(games) {
 
         card.addEventListener('click', () => {
             if (game.url) {
-                window.location.href = getGameUrl(game.url);
+                openGame(game.url).catch(() => {
+                    window.location.href = getGameUrl(game.url);
+                });
             }
         });
 
