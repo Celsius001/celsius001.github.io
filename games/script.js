@@ -56,6 +56,14 @@ async function getTruffledGames() {
   return data
 }
 
+function getGameUrl(gameUrl) {
+        if (/^https?:\/\//i.test(gameUrl)) {
+                return gameUrl;
+        }
+
+        return `https://cdn.jsdelivr.net/gh/gmshelf/${activeLibrary}/${gameUrl.replace(/^\/+/, '')}`;
+}
+
 async function loadLibrary(libName) {
     activeLibrary = libName;
     currentLibraryTitle.textContent = `${libName.toUpperCase()} GAMES`;
@@ -143,7 +151,7 @@ function renderGames(games) {
 
         card.addEventListener('click', () => {
             if (game.url) {
-                window.location.href = game.url;
+                window.location.href = getGameUrl(game.url);
             }
         });
 
