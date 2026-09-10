@@ -1,1 +1,54 @@
-leaving this for a test
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celsius Games</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="games-layout">
+        <aside class="games-sidebar">
+            <div class="sidebar-section">
+                <span class="section-title">LIBRARY</span>
+                <div class="library-grid" id="libraryList">
+                    <button class="lib-box active" data-lib="seraph">Seraph</button>
+                    <button class="lib-box" data-lib="ugs">UGS</button>
+                    <button class="lib-box center-box" data-lib="truffled">Truffled</button>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <span class="section-title">CATEGORIES</span>
+                <div class="category-list">
+                    <button class="cat-btn active" data-cat="all">All Games</button>
+                    <button class="cat-btn" data-cat="favorites">⭐ Favorites</button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="games-main">
+            <header class="games-header">
+                <div class="header-title-area">
+                    <h2 id="currentLibraryTitle">ALL GAMES</h2>
+                </div>
+                <div class="header-controls">
+                    <div class="search-container">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="text" id="searchInput" placeholder="Search games..." class="search-input">
+                    </div>
+                    <select id="sortSelect" class="sort-select">
+                        <option value="name">Name</option>
+                        <option value="recent">Recent</option>
+                    </select>
+                </div>
+            </header>
+
+            <div class="games-grid-container">
+                <div id="gamesGrid" class="games-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
