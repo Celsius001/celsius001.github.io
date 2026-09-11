@@ -1,0 +1,306 @@
+:root {
+    --bg-main: #000000;
+    --bg-panel: rgba(20, 20, 20, 0.6);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #a3a3a3;
+    --accent-color: #ffffff;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+.bg-blur {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: url('../background.png');
+    background-size: cover;
+    background-position: center;
+    filter: blur(35px) brightness(0.15);
+    z-index: -1;
+}
+
+.watch-app {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.watch-nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 76px;
+    padding: 0 4%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, transparent 100%);
+    z-index: 100;
+    transition: background-color 0.4s ease, backdrop-filter 0.4s ease;
+}
+
+.watch-nav.scrolled {
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+}
+
+.nav-left, .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.brand-logo {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--accent-color);
+}
+
+.content-toggle {
+    display: flex;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 30px;
+    padding: 4px;
+    gap: 4px;
+    backdrop-filter: blur(8px);
+}
+
+.toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 8px 24px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.toggle-btn:hover {
+    color: var(--text-primary);
+}
+
+.toggle-btn.active {
+    background: var(--text-primary);
+    color: var(--bg-main);
+    box-shadow: 0 2px 10px rgba(255,255,255,0.2);
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 24px;
+    transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.search-box:focus-within {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.search-box input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    outline: none;
+    margin-left: 10px;
+    font-size: 14px;
+    width: 180px;
+}
+
+.search-box input::placeholder {
+    color: var(--text-secondary);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background-color: var(--border-color);
+    border-radius: 8px;
+    transition: transform 0.2s ease;
+}
+
+.user-profile:hover .avatar {
+    transform: scale(1.05);
+}
+
+.hero {
+    position: relative;
+    height: 85vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 4%;
+    background-size: cover;
+    background-position: center;
+    background-image: linear-gradient(to top, var(--bg-main) 0%, transparent 100%), var(--hero-bg, none);
+}
+
+.hero-vignette {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.85) 100%);
+    pointer-events: none;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 600px;
+    margin-top: 60px;
+}
+
+.hero-title {
+    font-size: 4.5rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    line-height: 1.1;
+    text-shadow: 0 4px 16px rgba(0,0,0,0.6);
+}
+
+.hero-desc {
+    font-size: 1.1rem;
+    color: #e5e5e5;
+    margin-bottom: 32px;
+    line-height: 1.6;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+.play-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--text-primary);
+    color: var(--bg-main);
+    border: none;
+    padding: 12px 32px;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.play-btn:hover {
+    opacity: 0.85;
+    transform: scale(1.03);
+}
+
+.info-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(109, 109, 110, 0.6);
+    color: var(--text-primary);
+    border: none;
+    padding: 12px 32px;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.info-btn:hover {
+    background: rgba(109, 109, 110, 0.4);
+    transform: scale(1.03);
+}
+
+.slider-section {
+    padding: 0 4% 48px;
+    position: relative;
+    z-index: 2;
+    margin-top: -100px;
+}
+
+.slider-section ~ .slider-section {
+    margin-top: 0;
+}
+
+.row-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #e5e5e5;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.movie-row {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 16px 0;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+.movie-row::-webkit-scrollbar {
+    display: none;
+}
+
+.movie-card {
+    flex: 0 0 auto;
+    width: 220px;
+    aspect-ratio: 2 / 3;
+    background-color: var(--bg-panel);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+.movie-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: filter 0.3s ease;
+}
+
+.movie-card:hover {
+    transform: scale(1.08) translateY(-4px);
+    z-index: 10;
+}
+
+.movie-card:hover img {
+    filter: brightness(1.15);
+}
