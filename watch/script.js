@@ -14,6 +14,15 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const VERCEL_API_URL = "https://your-celsius-backend.vercel.app/api";
 
+let activeType = 'movies';
+let searchTimeout = null;
+
+const searchInput = document.getElementById('searchInput');
+const mainContainer = document.getElementById('mainContainer');
+const searchContainer = document.getElementById('searchContainer');
+const searchGrid = document.getElementById('searchGrid');
+const heroPlayBtn = document.getElementById('heroPlayBtn');
+
 function applyCelsiusTheme() {
     const root = document.documentElement;
     const savedTheme = localStorage.getItem('celsius_theme');
@@ -48,18 +57,34 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-async function fetchMovies(category) {
+async function fetchMovies(endpoint) {
     try {
-        const res = await fetch(`${VERCEL_API_URL}/movies?category=${category}`);
+        const res = await fetch(`${VERCEL_API_URL}/${endpoint}`);
         if (!res.ok) throw new Error("Backend connection failed");
         return await res.json(); 
     } catch (error) {
-        console.error(`Failed to fetch movies (${category}):`, error);
         return []; 
     }
 }
 
-async function fetchAnilist(category) {
+async function fetchAnilist(queryStr, variables = {}) {
+    try {
+        const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ query: queryStr, variables })
+        });
+        if (!res.ok) throw new Error("AniList fetch failed");
+        return await res.json();
+    } catch (error) {
+        return { data: null }; 
+    }
+}
+
+async function getAnimeCategory(category) {
     let sortOption = "POPULARITY_DESC"; 
     if (category === 'latest') sortOption = "TRENDING_DESC";
     if (category === 'new') sortOption = "START_DATE_DESC";
@@ -68,45 +93,65 @@ async function fetchAnilist(category) {
         query {
             Page(page: 1, perPage: 15) {
                 media(type: ANIME, sort: ${sortOption}, isAdult: false) {
-                    title { english romaji }
-                    coverImage { extraLarge }
-                    bannerImage
+                    id title { english romaji } coverImage { extraLarge } bannerImage
                 }
             }
         }
     `;
 
-    try {
-        const res = await fetch('https://graphql.anilist.co', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ query })
-        });
-        
-        if (!res.ok) throw new Error("AniList fetch failed");
-        
-        const { data } = await res.json();
-        
-        return data.Page.media.map(anime => ({
+    const result = await fetchAnilist(query);
+    if (!result.data) return [];
+
+    return result.data.Page.media.map(anime => ({
+        id: anime.id,
+        title: anime.title.english || anime.title.romaji,
+        poster: anime.coverImage.extraLarge,
+        banner: anime.bannerImage || anime.coverImage.extraLarge 
+    }));
+}
+
+async function searchContent(query) {
+    if (activeType === 'anime') {
+        const gqlQuery = `
+            query ($search: String) {
+                Page(page: 1, perPage: 20) {
+                    media(type: ANIME, search: $search, isAdult: false) {
+                        id title { english romaji } coverImage { extraLarge }
+                    }
+                }
+            }
+        `;
+        const result = await fetchAnilist(gqlQuery, { search: query });
+        if (!result.data) return [];
+        return result.data.Page.media.map(anime => ({
+            id: anime.id,
             title: anime.title.english || anime.title.romaji,
-            poster: anime.coverImage.extraLarge,
-            banner: anime.bannerImage || anime.coverImage.extraLarge 
+            poster: anime.coverImage.extraLarge
         }));
-    } catch (error) {
-        console.error(`Failed to fetch anime (${category}):`, error);
-        return []; 
+    } else {
+        return await fetchMovies(`search?query=${encodeURIComponent(query)}`);
     }
 }
 
-async function fetchContent(category, type) {
-    if (type === 'anime') {
-        return await fetchAnilist(category);
+async function fetchCategory(category) {
+    if (activeType === 'anime') {
+        return await getAnimeCategory(category);
     } else {
-        return await fetchMovies(category);
+        return await fetchMovies(`movies?category=${category}`);
     }
+}
+
+function openPlayer(item) {
+    const url = `player.html?type=${activeType}&title=${encodeURIComponent(item.title)}&poster=${encodeURIComponent(item.poster || '')}&id=${item.id || ''}`;
+    window.location.href = url;
+}
+
+function createCard(item) {
+    const card = document.createElement('div');
+    card.className = 'movie-card';
+    card.innerHTML = `<img src="${item.poster}" alt="${item.title}" onerror="this.style.backgroundColor='var(--bg-panel)'">`;
+    card.addEventListener('click', () => openPlayer(item));
+    return card;
 }
 
 function renderRow(containerId, items) {
@@ -118,22 +163,17 @@ function renderRow(containerId, items) {
         return;
     }
 
-    items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'movie-card';
-        card.innerHTML = `<img src="${item.poster}" alt="${item.title}" onerror="this.style.backgroundColor='var(--bg-panel)'">`;
-        container.appendChild(card);
-    });
+    items.forEach(item => container.appendChild(createCard(item)));
 }
 
-async function initContent(type = 'movies') {
+async function initContent() {
     document.getElementById('heroTitle').textContent = "Loading...";
     document.getElementById('heroDesc').textContent = "Fetching content from servers.";
     document.getElementById('heroSection').style.removeProperty('--hero-bg');
 
-    const topHits = await fetchContent('hits', type);
-    const latest = await fetchContent('latest', type);
-    const newAdd = await fetchContent('new', type);
+    const topHits = await fetchCategory('hits');
+    const latest = await fetchCategory('latest');
+    const newAdd = await fetchCategory('new');
 
     renderRow('topHitsRow', topHits);
     renderRow('latestRow', latest);
@@ -142,14 +182,20 @@ async function initContent(type = 'movies') {
     if (topHits.length > 0) {
         const heroItem = topHits[0];
         document.getElementById('heroTitle').textContent = heroItem.title;
-        document.getElementById('heroDesc').textContent = `Watch the most popular ${type} right now exclusively on Celsius.`;
-        
+        document.getElementById('heroDesc').textContent = `Watch the most popular ${activeType} right now exclusively on Celsius.`;
         if (heroItem.banner) {
             document.getElementById('heroSection').style.setProperty('--hero-bg', `url(${heroItem.banner})`);
         }
+        
+        heroPlayBtn.onclick = () => openPlayer(heroItem);
     } else {
         document.getElementById('heroTitle').textContent = "API Offline";
-        document.getElementById('heroDesc').textContent = "Please ensure your backend is running or check API limits.";
+        if (activeType === 'movies') {
+            document.getElementById('heroDesc').textContent = "movies are down do something else";
+        } else {
+            document.getElementById('heroDesc').textContent = "Content is currently unavailable.";
+        }
+        heroPlayBtn.onclick = null;
     }
 }
 
@@ -160,11 +206,42 @@ toggleBtns.forEach(btn => {
         
         toggleBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        initContent(btn.dataset.type);
+        activeType = btn.dataset.type;
+        
+        searchInput.placeholder = `Search ${activeType}...`;
+        searchInput.value = '';
+        mainContainer.style.display = 'block';
+        searchContainer.style.display = 'none';
+
+        initContent();
     });
 });
 
-initContent('movies');
+searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    clearTimeout(searchTimeout);
+    
+    if (query.length > 2) {
+        mainContainer.style.display = 'none';
+        searchContainer.style.display = 'block';
+        searchGrid.innerHTML = `<p style="color: var(--text-secondary);">Searching...</p>`;
+        
+        searchTimeout = setTimeout(async () => {
+            const results = await searchContent(query);
+            searchGrid.innerHTML = '';
+            if (results.length === 0) {
+                searchGrid.innerHTML = `<p style="color: var(--text-secondary);">No results found for "${query}".</p>`;
+            } else {
+                results.forEach(item => searchGrid.appendChild(createCard(item)));
+            }
+        }, 500);
+    } else {
+        mainContainer.style.display = 'block';
+        searchContainer.style.display = 'none';
+    }
+});
+
+initContent();
 
 window.addEventListener('scroll', () => {
     const nav = document.querySelector('.watch-nav');
