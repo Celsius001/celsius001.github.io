@@ -45,9 +45,9 @@ function updateStreamUrl(mediaData) {
     const episode = episodeInput.value;
 
     if (mediaData.type === 'anime') {
-        embedUrl = `https://vidsrc.cc/v2/embed/anime/${mediaData.id}/${season}/${episode}`;
+        embedUrl = `https://vidsrc.sbs/embed/tv/${mediaData.id}/${season}/${episode}`;
     } else {
-        embedUrl = `https://vidsrc.cc/v2/embed/movie?tmdb=${mediaData.id}`;
+        embedUrl = `https://vidsrc.sbs/embed/movie/${mediaData.id}`;
     }
 
     mediaFrame.src = embedUrl;
