@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const VERCEL_BACKEND_URL = "https://your-new-celsius-backend.vercel.app/api";
+const VERCEL_BACKEND_URL = "celsius-tmbd.vercel.app/api";
 
 let activeType = 'movies';
 let searchTimeout = null;
