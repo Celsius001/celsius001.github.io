@@ -20,6 +20,10 @@ const videoContainer = document.getElementById('videoContainer');
 const mediaFrame = document.getElementById('mediaFrame');
 const statusOverlay = document.getElementById('videoPlaceholder');
 const playerStatus = document.getElementById('playerStatus');
+const episodeControls = document.getElementById('episodeControls');
+const seasonInput = document.getElementById('seasonInput');
+const episodeInput = document.getElementById('episodeInput');
+const loadEpisodeBtn = document.getElementById('loadEpisodeBtn');
 
 document.getElementById('backBtn').addEventListener('click', () => {
     window.location.href = 'index.html';
@@ -35,6 +39,24 @@ function getQueryParams() {
     };
 }
 
+function updateStreamUrl(mediaData) {
+    let embedUrl = "";
+    const season = seasonInput.value;
+    const episode = episodeInput.value;
+
+    if (mediaData.type === 'anime') {
+        embedUrl = `https://vidsrc.cc/v2/embed/anime/${mediaData.id}/${season}/${episode}`;
+    } else {
+        embedUrl = `https://vidsrc.cc/v2/embed/movie?tmdb=${mediaData.id}`;
+    }
+
+    mediaFrame.src = embedUrl;
+    mediaFrame.onload = () => {
+        statusOverlay.style.opacity = '0';
+        setTimeout(() => statusOverlay.style.display = 'none', 300);
+    };
+}
+
 function initPlayer() {
     const mediaData = getQueryParams();
     document.getElementById('videoTitle').textContent = mediaData.title;
@@ -44,22 +66,21 @@ function initPlayer() {
         document.getElementById('playerBgBlur').style.backgroundImage = `url(${mediaData.poster})`;
     }
 
-    playerStatus.textContent = `Connecting stream for "${mediaData.title}"...`;
-
-    let embedUrl = "";
-    if (mediaData.type === 'movies') {
-        embedUrl = `https://vidsrc.xyz/embed/movie?tmdb=${mediaData.id}`;
-    } else {
-        embedUrl = `https://vidsrc.xyz/embed/anime?anilist=${mediaData.id}`;
+    if (mediaData.type === 'anime') {
+        episodeControls.style.display = 'flex';
     }
 
+    playerStatus.textContent = `Connecting stream for "${mediaData.title}"...`;
+
     setTimeout(() => {
-        mediaFrame.src = embedUrl;
-        mediaFrame.onload = () => {
-            statusOverlay.style.opacity = '0';
-            setTimeout(() => statusOverlay.style.display = 'none', 300);
-        };
+        updateStreamUrl(mediaData);
     }, 600);
+
+    loadEpisodeBtn.addEventListener('click', () => {
+        statusOverlay.style.display = 'flex';
+        statusOverlay.style.opacity = '1';
+        updateStreamUrl(mediaData);
+    });
 }
 
 let hideTimeout;
