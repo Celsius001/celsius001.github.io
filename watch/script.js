@@ -72,15 +72,77 @@ async function fetchTMDB(endpoint, query = '') {
     }
 }
 
+async function fetchAnilist(queryStr, variables = {}) {
+    try {
+        const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ query: queryStr, variables })
+        });
+        if (!res.ok) throw new Error("AniList fetch failed");
+        return await res.json();
+    } catch (error) {
+        return { data: null };
+    }
+}
+
+async function getAnimeCategory(category) {
+    let sortOption = "POPULARITY_DESC";
+    if (category === 'latest') sortOption = "TRENDING_DESC";
+    if (category === 'new') sortOption = "START_DATE_DESC";
+
+    const query = `
+        query {
+            Page(page: 1, perPage: 15) {
+                media(type: ANIME, sort: ${sortOption}, isAdult: false) {
+                    id title { english romaji } coverImage { extraLarge } bannerImage
+                }
+            }
+        }
+    `;
+
+    const result = await fetchAnilist(query);
+    if (!result.data) return [];
+
+    return result.data.Page.media.map(anime => ({
+        id: anime.id,
+        title: anime.title.english || anime.title.romaji,
+        poster: anime.coverImage.extraLarge,
+        banner: anime.bannerImage || anime.coverImage.extraLarge,
+        isAnime: true
+    }));
+}
+
 async function searchContent(query) {
-    if (activeType === 'anime' || activeType === 'tv') {
+    if (activeType === 'anime') {
+        const gqlQuery = `
+            query ($search: String) {
+                Page(page: 1, perPage: 20) {
+                    media(type: ANIME, search: $search, isAdult: false) {
+                        id title { english romaji } coverImage { extraLarge }
+                    }
+                }
+            }
+        `;
+        const result = await fetchAnilist(gqlQuery, { search: query });
+        if (!result.data) return [];
+        return result.data.Page.media.map(anime => ({
+            id: anime.id,
+            title: anime.title.english || anime.title.romaji,
+            poster: anime.coverImage.extraLarge,
+            isAnime: true
+        }));
+    } else if (activeType === 'tv') {
         const results = await fetchTMDB('/search/tv', query);
         return results.map(item => ({
             id: item.id,
             title: item.name || item.title,
             poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
             banner: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
-            isAnime: true
+            isAnime: false
         }));
     } else {
         const results = await fetchTMDB('/search/movie', query);
@@ -96,18 +158,7 @@ async function searchContent(query) {
 
 async function fetchCategory(category) {
     if (activeType === 'anime') {
-        let endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc';
-        if (category === 'latest') endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=first_air_date.desc';
-        if (category === 'new') endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=vote_average.desc';
-        
-        const results = await fetchTMDB(endpoint);
-        return results.map(item => ({
-            id: item.id,
-            title: item.name || item.title,
-            poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
-            banner: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
-            isAnime: true
-        }));
+        return await getAnimeCategory(category);
     } else if (activeType === 'tv') {
         let endpoint = '/tv/popular';
         if (category === 'latest') endpoint = '/tv/on_the_air';
@@ -119,7 +170,7 @@ async function fetchCategory(category) {
             title: item.name || item.title,
             poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
             banner: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
-            isAnime: true
+            isAnime: false
         }));
     } else {
         let endpoint = '/movie/popular';
@@ -186,7 +237,7 @@ async function initContent() {
         heroPlayBtn.onclick = () => openPlayer(heroItem);
     } else {
         document.getElementById('heroTitle').textContent = "Content Unavailable";
-        document.getElementById('heroDesc').textContent = "Please check your Vercel API configuration.";
+        document.getElementById('heroDesc').textContent = "Please check your API configurations.";
         heroPlayBtn.onclick = null;
     }
 }
