@@ -47,29 +47,12 @@ body, html {
     color: var(--text-primary); font-size: 16px;
     font-weight: 500; cursor: pointer; transition: color 0.2s;
 }
+
 .back-btn:hover { color: var(--text-secondary); }
 
 .now-playing-title {
     font-size: 18px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;
-}
-
-.episode-controls {
-    display: flex; align-items: center; gap: 12px; margin-left: auto;
-}
-
-.control-group {
-    display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);
-}
-
-.episode-controls input {
-    width: 60px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-    color: var(--text-primary); padding: 4px 8px; border-radius: 4px; text-align: center; outline: none;
-}
-
-.episode-controls button {
-    background: var(--text-primary); color: var(--bg-main); border: none;
-    padding: 5px 12px; border-radius: 4px; font-weight: 600; cursor: pointer;
 }
 
 .video-wrapper {
