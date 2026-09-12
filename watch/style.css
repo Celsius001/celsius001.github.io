@@ -304,3 +304,21 @@ body {
 .movie-card:hover img {
     filter: brightness(1.15);
 }
+
+.search-container {
+    padding: 100px 4% 48px;
+    position: relative;
+    z-index: 2;
+    min-height: 80vh;
+}
+
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding-top: 16px;
+}
+
+.search-grid .movie-card {
+    width: 100%;
+}
