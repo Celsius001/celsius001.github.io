@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const VERCEL_API_URL = "https://your-celsius-backend.vercel.app/api";
+const VERCEL_BACKEND_URL = "https://your-new-celsius-backend.vercel.app/api";
 
 let activeType = 'movies';
 let searchTimeout = null;
@@ -22,6 +22,7 @@ const mainContainer = document.getElementById('mainContainer');
 const searchContainer = document.getElementById('searchContainer');
 const searchGrid = document.getElementById('searchGrid');
 const heroPlayBtn = document.getElementById('heroPlayBtn');
+const userGreeting = document.getElementById('userGreeting');
 
 function applyCelsiusTheme() {
     const root = document.documentElement;
@@ -47,8 +48,6 @@ window.addEventListener('message', (event) => {
     }
 });
 
-const userGreeting = document.getElementById('userGreeting');
-
 onAuthStateChanged(auth, (user) => {
     if (user) {
         userGreeting.textContent = user.displayName || `User_${user.uid.substring(0, 5)}`;
@@ -57,87 +56,71 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-async function fetchMovies(endpoint) {
+async function fetchTMDB(endpoint, query = '') {
     try {
-        const res = await fetch(`${VERCEL_API_URL}/${endpoint}`);
-        if (!res.ok) throw new Error("Backend connection failed");
-        return await res.json(); 
-    } catch (error) {
-        return []; 
-    }
-}
-
-async function fetchAnilist(queryStr, variables = {}) {
-    try {
-        const res = await fetch('https://graphql.anilist.co', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ query: queryStr, variables })
-        });
-        if (!res.ok) throw new Error("AniList fetch failed");
-        return await res.json();
-    } catch (error) {
-        return { data: null }; 
-    }
-}
-
-async function getAnimeCategory(category) {
-    let sortOption = "POPULARITY_DESC"; 
-    if (category === 'latest') sortOption = "TRENDING_DESC";
-    if (category === 'new') sortOption = "START_DATE_DESC";
-
-    const query = `
-        query {
-            Page(page: 1, perPage: 15) {
-                media(type: ANIME, sort: ${sortOption}, isAdult: false) {
-                    id title { english romaji } coverImage { extraLarge } bannerImage
-                }
-            }
+        let url = `${VERCEL_BACKEND_URL}/tmdb?path=${encodeURIComponent(endpoint)}`;
+        if (query) {
+            url += `&query=${encodeURIComponent(query)}`;
         }
-    `;
-
-    const result = await fetchAnilist(query);
-    if (!result.data) return [];
-
-    return result.data.Page.media.map(anime => ({
-        id: anime.id,
-        title: anime.title.english || anime.title.romaji,
-        poster: anime.coverImage.extraLarge,
-        banner: anime.bannerImage || anime.coverImage.extraLarge 
-    }));
+        
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Vercel backend fetch failed");
+        const data = await res.json();
+        return data.results || [];
+    } catch (error) {
+        return [];
+    }
 }
 
 async function searchContent(query) {
     if (activeType === 'anime') {
-        const gqlQuery = `
-            query ($search: String) {
-                Page(page: 1, perPage: 20) {
-                    media(type: ANIME, search: $search, isAdult: false) {
-                        id title { english romaji } coverImage { extraLarge }
-                    }
-                }
-            }
-        `;
-        const result = await fetchAnilist(gqlQuery, { search: query });
-        if (!result.data) return [];
-        return result.data.Page.media.map(anime => ({
-            id: anime.id,
-            title: anime.title.english || anime.title.romaji,
-            poster: anime.coverImage.extraLarge
+        const results = await fetchTMDB('/search/tv', query);
+        return results.filter(item => item.genre_ids && item.genre_ids.includes(16)).map(item => ({
+            id: item.id,
+            title: item.name || item.title,
+            poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+            banner: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
+            isAnime: true
         }));
     } else {
-        return await fetchMovies(`search?query=${encodeURIComponent(query)}`);
+        const results = await fetchTMDB('/search/movie', query);
+        return results.map(movie => ({
+            id: movie.id,
+            title: movie.title,
+            poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '',
+            banner: movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : '',
+            isAnime: false
+        }));
     }
 }
 
 async function fetchCategory(category) {
     if (activeType === 'anime') {
-        return await getAnimeCategory(category);
+        let endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc';
+        if (category === 'latest') endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=first_air_date.desc';
+        if (category === 'new') endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=vote_average.desc';
+        
+        const results = await fetchTMDB(endpoint);
+        return results.map(item => ({
+            id: item.id,
+            title: item.name || item.title,
+            poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+            banner: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
+            isAnime: true
+        }));
     } else {
-        return await fetchMovies(`movies?category=${category}`);
+        let endpoint = '/movie/popular';
+        if (category === 'latest') endpoint = '/movie/now_playing';
+        if (category === 'new') endpoint = '/movie/upcoming';
+        
+        const results = await fetchTMDB(endpoint);
+        return results.map(movie => ({
+            id: movie.id,
+            title: movie.title,
+            poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '',
+            banner: movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : '',
+            isAnime: false
+        }));
     }
 }
 
@@ -189,12 +172,8 @@ async function initContent() {
         
         heroPlayBtn.onclick = () => openPlayer(heroItem);
     } else {
-        document.getElementById('heroTitle').textContent = "API Offline";
-        if (activeType === 'movies') {
-            document.getElementById('heroDesc').textContent = "movies are down do something else";
-        } else {
-            document.getElementById('heroDesc').textContent = "Content is currently unavailable.";
-        }
+        document.getElementById('heroTitle').textContent = "Content Unavailable";
+        document.getElementById('heroDesc').textContent = "Please check your Vercel API configuration.";
         heroPlayBtn.onclick = null;
     }
 }
