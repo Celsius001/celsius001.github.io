@@ -38,7 +38,9 @@ function getQueryParams() {
 function updateStreamUrl(mediaData) {
     let embedUrl = "";
 
-    if (mediaData.type === 'anime' || mediaData.type === 'tv') {
+    if (mediaData.type === 'anime') {
+        embedUrl = `https://vidsrc.sbs/embed/anime/${mediaData.id}`;
+    } else if (mediaData.type === 'tv') {
         embedUrl = `https://vidsrc.sbs/embed/tv/${mediaData.id}`;
     } else {
         embedUrl = `https://vidsrc.sbs/embed/movie/${mediaData.id}`;
