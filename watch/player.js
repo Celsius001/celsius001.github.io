@@ -20,10 +20,6 @@ const videoContainer = document.getElementById('videoContainer');
 const mediaFrame = document.getElementById('mediaFrame');
 const statusOverlay = document.getElementById('videoPlaceholder');
 const playerStatus = document.getElementById('playerStatus');
-const episodeControls = document.getElementById('episodeControls');
-const seasonInput = document.getElementById('seasonInput');
-const episodeInput = document.getElementById('episodeInput');
-const loadEpisodeBtn = document.getElementById('loadEpisodeBtn');
 
 document.getElementById('backBtn').addEventListener('click', () => {
     window.location.href = 'index.html';
@@ -41,11 +37,9 @@ function getQueryParams() {
 
 function updateStreamUrl(mediaData) {
     let embedUrl = "";
-    const season = seasonInput.value;
-    const episode = episodeInput.value;
 
-    if (mediaData.type === 'anime') {
-        embedUrl = `https://vidsrc.sbs/embed/tv/${mediaData.id}/${season}/${episode}`;
+    if (mediaData.type === 'anime' || mediaData.type === 'tv') {
+        embedUrl = `https://vidsrc.sbs/embed/tv/${mediaData.id}`;
     } else {
         embedUrl = `https://vidsrc.sbs/embed/movie/${mediaData.id}`;
     }
@@ -66,21 +60,11 @@ function initPlayer() {
         document.getElementById('playerBgBlur').style.backgroundImage = `url(${mediaData.poster})`;
     }
 
-    if (mediaData.type === 'anime') {
-        episodeControls.style.display = 'flex';
-    }
-
     playerStatus.textContent = `Connecting stream for "${mediaData.title}"...`;
 
     setTimeout(() => {
         updateStreamUrl(mediaData);
     }, 600);
-
-    loadEpisodeBtn.addEventListener('click', () => {
-        statusOverlay.style.display = 'flex';
-        statusOverlay.style.opacity = '1';
-        updateStreamUrl(mediaData);
-    });
 }
 
 let hideTimeout;
