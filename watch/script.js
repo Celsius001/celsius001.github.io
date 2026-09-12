@@ -73,9 +73,9 @@ async function fetchTMDB(endpoint, query = '') {
 }
 
 async function searchContent(query) {
-    if (activeType === 'anime') {
+    if (activeType === 'anime' || activeType === 'tv') {
         const results = await fetchTMDB('/search/tv', query);
-        return results.filter(item => item.genre_ids && item.genre_ids.includes(16)).map(item => ({
+        return results.map(item => ({
             id: item.id,
             title: item.name || item.title,
             poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
@@ -99,6 +99,19 @@ async function fetchCategory(category) {
         let endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc';
         if (category === 'latest') endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=first_air_date.desc';
         if (category === 'new') endpoint = '/discover/tv?with_genres=16&with_original_language=ja&sort_by=vote_average.desc';
+        
+        const results = await fetchTMDB(endpoint);
+        return results.map(item => ({
+            id: item.id,
+            title: item.name || item.title,
+            poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+            banner: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '',
+            isAnime: true
+        }));
+    } else if (activeType === 'tv') {
+        let endpoint = '/tv/popular';
+        if (category === 'latest') endpoint = '/tv/on_the_air';
+        if (category === 'new') endpoint = '/tv/top_rated';
         
         const results = await fetchTMDB(endpoint);
         return results.map(item => ({
