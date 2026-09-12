@@ -16,6 +16,17 @@
                 Back
             </button>
             <h2 class="now-playing-title" id="videoTitle">Loading...</h2>
+            <div class="episode-controls" id="episodeControls" style="display: none;">
+                <div class="control-group">
+                    <label>Season</label>
+                    <input type="number" id="seasonInput" value="1" min="1" max="20">
+                </div>
+                <div class="control-group">
+                    <label>Episode</label>
+                    <input type="number" id="episodeInput" value="1" min="1" max="100">
+                </div>
+                <button id="loadEpisodeBtn">Load</button>
+            </div>
         </header>
 
         <main class="video-wrapper">
