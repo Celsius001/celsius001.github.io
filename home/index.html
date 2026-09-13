@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mnd-ver" content="wwez9pipje9jkodon8eolg" />
     <title>Celsius</title>
     <link rel="stylesheet" href="style.css">
     <script src="/scramjet/scramjet.js"></script>
@@ -59,27 +60,28 @@
                 <button class="nav-btn"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
                 <button class="nav-btn"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
                 <button class="nav-btn" id="reloadBtn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+                <button class="nav-btn"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
             </div>
             <div class="url-bar-container">
                 <svg class="url-info" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                 <input type="text" class="url-input" id="urlInput" value="">
             </div>
             <div class="nav-extensions">
-                <button class="nav-btn" id="fullscreenBtn" title="Fullscreen Mode"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+                <button class="nav-btn" id="fullscreenBtn"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
             </div>
         </div>
-        <div class="page-content" id="pageContent">
+        <div class="page-content">
             <div id="homeView" class="home-container">
                 <h1 class="logo-text">Celsius</h1>
             </div>
+            <iframe id="appFrame" class="app-frame" src="about:blank" allow="fullscreen; clipboard-read; clipboard-write; camera; microphone"></iframe>
         </div>
     </div>
     <script>
         window.scramjetReady = false;
-        window.scramjetFrames = {};
-        window.pendingProxyTasks = [];
-
-        async function initializeProxy() {
+        window.scramjetCtrl = null;
+        window.scramjetFrame = null;
+        async function initScramjet() {
             try {
                 if ("serviceWorker" in navigator) {
                     await navigator.serviceWorker.register("/sw.js");
@@ -87,34 +89,13 @@
                     const sw = navigator.serviceWorker.controller || (await navigator.serviceWorker.ready).active;
                     const transport = new self.EpoxyTransport.default({ wisp: "wss://wisp.mercurywork.shop/" });
                     await transport.init();
-                    window.scramjet = new $scramjetController.Controller({ 
-                        serviceworker: sw, 
-                        transport, 
-                        scramjetConfig: $scramjet.defaultConfig 
-                    });
-                    await window.scramjet.wait();
+                    window.scramjetCtrl = new $scramjetController.Controller({ serviceworker: sw, transport, scramjetConfig: $scramjet.defaultConfig });
+                    await window.scramjetCtrl.wait();
                     window.scramjetReady = true;
-                    window.pendingProxyTasks.forEach(task => task());
-                    window.pendingProxyTasks = [];
                 }
-            } catch (err) {
-                console.error("Scramjet Init Error:", err);
-            }
+            } catch(e) { console.error(e); }
         }
-        initializeProxy();
-        window.loadProxyUrl = function(tabId, iframeElement, urlToLoad) {
-            const executeLoad = () => {
-                if (!window.scramjetFrames[tabId]) {
-                    window.scramjetFrames[tabId] = window.scramjet.createFrame(iframeElement);
-                }
-                window.scramjetFrames[tabId].go(urlToLoad);
-            };
-            if (window.scramjetReady) {
-                executeLoad();
-            } else {
-                window.pendingProxyTasks.push(executeLoad);
-            }
-        };
+        initScramjet();
     </script>
     <script src="script.js"></script>
 </body>
