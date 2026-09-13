@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { ChatUtilities } from "./chat-utilities.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -17,7 +18,6 @@ const auth = getAuth(app);
 
 let currentUser = "";
 let currentChannel = "general";
-let currentUid = "";
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
 let presenceInterval = null;
@@ -27,14 +27,22 @@ const currentChannelTitle = document.getElementById('current-channel-title');
 const messagesList = document.getElementById('messages-list');
 const messagesContainer = document.getElementById('messages-container');
 const messageInput = document.getElementById('message-input');
+const inputArea = document.getElementById('input-area');
 const usersList = document.getElementById('users-list');
 const onlineCount = document.getElementById('online-count');
 const currentUsernameDisplay = document.getElementById('current-username');
 
+const chatUtils = new ChatUtilities({
+    db,
+    getChannel: () => currentChannel,
+    getUser: () => currentUser,
+    inputArea,
+    messageInput
+});
+
 function applyCelsiusSettings() {
     const root = document.documentElement;
     const savedTheme = localStorage.getItem('celsius_theme');
-    
     if (savedTheme) {
         try {
             const theme = JSON.parse(savedTheme);
@@ -48,40 +56,28 @@ function applyCelsiusSettings() {
         } catch (e) {}
     }
 }
-
 applyCelsiusSettings();
 
 window.addEventListener('message', (event) => {
-    if (event.data) {
-        if (event.data.action === 'updateTheme' || event.data.action === 'updateSettings') {
-            applyCelsiusSettings();
-        }
+    if (event.data && (event.data.action === 'updateTheme' || event.data.action === 'updateSettings')) {
+        applyCelsiusSettings();
     }
 });
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        currentUid = user.uid;
-        
         if (user.displayName) {
             currentUser = user.displayName;
-            localStorage.setItem('celsius_username', currentUser);
         } else {
             let storedName = localStorage.getItem('celsius_username');
             if (!storedName) {
                 storedName = prompt("Enter your username to join celsius|chat:", "");
-                if (!storedName || storedName.trim() === "") {
-                    storedName = "User_" + Math.floor(1000 + Math.random() * 9000);
-                }
+                if (!storedName || storedName.trim() === "") storedName = "User_" + Math.floor(1000 + Math.random() * 9000);
             }
             currentUser = storedName.trim();
             localStorage.setItem('celsius_username', currentUser);
-            
-            try {
-                await updateProfile(user, { displayName: currentUser });
-            } catch (e) {}
+            await updateProfile(user, { displayName: currentUser }).catch(() => {});
         }
-        
         currentUsernameDisplay.textContent = currentUser;
         registerUserPresence();
         switchChannel('general');
@@ -92,68 +88,32 @@ onAuthStateChanged(auth, async (user) => {
 
 function registerUserPresence() {
     const userRef = doc(db, 'online_users', currentUser);
-    
     const sendHeartbeat = () => {
-        setDoc(userRef, {
-            username: currentUser,
-            lastSeen: Date.now()
-        }, { merge: true }).catch(() => {});
+        setDoc(userRef, { username: currentUser, lastSeen: Date.now() }, { merge: true }).catch(() => {});
     };
-
     sendHeartbeat();
-    
     if (presenceInterval) clearInterval(presenceInterval);
     presenceInterval = setInterval(sendHeartbeat, 5000);
-
-    window.addEventListener('beforeunload', () => {
-        clearInterval(presenceInterval);
-        deleteDoc(userRef);
-    });
-
+    window.addEventListener('beforeunload', () => { clearInterval(presenceInterval); deleteDoc(userRef); });
     listenToOnlineUsers();
 }
 
 function listenToOnlineUsers() {
     const usersQuery = query(collection(db, 'online_users'), orderBy('lastSeen', 'desc'));
-    
-    if (unsubscribeUsers) {
-        unsubscribeUsers();
-    }
-    
+    if (unsubscribeUsers) unsubscribeUsers();
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
         usersList.innerHTML = '';
         let count = 0;
         const now = Date.now();
-        
         snapshot.forEach((docSnap) => {
             const userData = docSnap.data();
-            const lastSeen = userData.lastSeen;
-            
-            if (!lastSeen || (now - lastSeen) > 15000) {
-                return;
-            }
-            
+            if (!userData.lastSeen || (now - userData.lastSeen) > 15000) return;
             count++;
             const userEl = document.createElement('div');
             userEl.className = 'user-item';
-            
-            const avatarEl = document.createElement('div');
-            avatarEl.className = 'user-item-avatar';
-            const iconImg = document.createElement('img');
-            iconImg.src = '../favicon.ico';
-            iconImg.alt = 'user';
-            iconImg.className = 'avatar-favicon';
-            avatarEl.appendChild(iconImg);
-            
-            const nameEl = document.createElement('div');
-            nameEl.className = 'user-item-name';
-            nameEl.textContent = userData.username || 'Anonymous';
-            
-            userEl.appendChild(avatarEl);
-            userEl.appendChild(nameEl);
+            userEl.innerHTML = `<div class="user-item-avatar"><img src="../favicon.ico" class="avatar-favicon"></div><div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>`;
             usersList.appendChild(userEl);
         });
-        
         onlineCount.textContent = count;
     }, () => {});
 }
@@ -162,79 +122,70 @@ function switchChannel(channelName) {
     currentChannel = channelName;
     currentChannelTitle.textContent = currentChannel;
     messageInput.placeholder = `Message #${channelName}`;
-    
     channelElements.forEach(el => {
-        if (el.getAttribute('data-channel') === currentChannel) {
-            el.classList.add('active');
-        } else {
-            el.classList.remove('active');
-        }
+        el.classList.toggle('active', el.getAttribute('data-channel') === currentChannel);
     });
-    
+    chatUtils.clearReply();
     listenToMessages();
 }
 
 function formatTime(timestamp) {
     if (!timestamp) return "Just now";
-    const date = timestamp.toDate();
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function listenToMessages() {
-    if (unsubscribeMessages) {
-        unsubscribeMessages();
-    }
-    
+    if (unsubscribeMessages) unsubscribeMessages();
     messagesList.innerHTML = '';
     const q = query(collection(db, `messages_${currentChannel}`), orderBy('createdAt', 'asc'));
-    
     unsubscribeMessages = onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const data = change.doc.data();
-                appendMessage(data);
-            }
+        messagesList.innerHTML = '';
+        snapshot.forEach((docSnap) => {
+            appendMessage(docSnap.id, docSnap.data());
         });
         scrollToBottom();
     }, () => {});
 }
 
-function appendMessage(data) {
+function appendMessage(msgId, data) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message';
-    
+    msgDiv.style.position = 'relative';
+
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
-    const avatarImg = document.createElement('img');
-    avatarImg.src = '../favicon.ico';
-    avatarImg.alt = 'avatar';
-    avatarImg.className = 'avatar-favicon';
-    avatar.appendChild(avatarImg);
-    
+    avatar.innerHTML = `<img src="../favicon.ico" class="avatar-favicon">`;
+
     const content = document.createElement('div');
     content.className = 'message-content';
-    
+
+    if (data.replyTo) {
+        const replyTag = document.createElement('div');
+        replyTag.style.cssText = 'font-size:11px;color:var(--text-secondary);margin-bottom:2px;display:flex;align-items:center;gap:4px;';
+        replyTag.innerHTML = `↪️ Replying to <b>${chatUtils.escapeHtml(data.replyTo.author)}</b>`;
+        content.appendChild(replyTag);
+    }
+
     const header = document.createElement('div');
     header.className = 'message-header';
-    const author = document.createElement('span');
-    author.className = 'message-author';
-    author.textContent = data.user || 'Anonymous';
-    const time = document.createElement('span');
-    time.className = 'message-timestamp';
-    time.textContent = formatTime(data.createdAt);
-    
-    header.appendChild(author);
-    header.appendChild(time);
+    header.innerHTML = `<span class="message-author">${chatUtils.escapeHtml(data.user || 'Anonymous')}</span><span class="message-timestamp">${formatTime(data.createdAt)}</span>`;
     
     const text = document.createElement('div');
     text.className = 'message-text';
     text.textContent = data.text;
-    
+
     content.appendChild(header);
     content.appendChild(text);
-    
+    content.appendChild(chatUtils.renderReactions(msgId, data));
+
+    const toolbar = chatUtils.createActionToolbar(msgId, data);
     msgDiv.appendChild(avatar);
     msgDiv.appendChild(content);
+    msgDiv.appendChild(toolbar);
+
+    msgDiv.addEventListener('mouseenter', () => { toolbar.style.opacity = '1'; toolbar.style.pointerEvents = 'auto'; });
+    msgDiv.addEventListener('mouseleave', () => { toolbar.style.opacity = '0'; toolbar.style.pointerEvents = 'none'; });
+
     messagesList.appendChild(msgDiv);
 }
 
@@ -245,22 +196,22 @@ function scrollToBottom() {
 function sendMessage() {
     const text = messageInput.value.trim();
     if (text === "") return;
-    
+    const replyPayload = chatUtils.getReplyPayload();
+
     const msgData = {
-        text: text,
+        text,
         user: currentUser,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        ...(replyPayload ? { replyTo: { id: replyPayload.id, author: replyPayload.author, text: replyPayload.text } } : {})
     };
-    
+
     messageInput.value = '';
+    chatUtils.clearReply();
     addDoc(collection(db, `messages_${currentChannel}`), msgData).catch(() => {});
 }
 
 channelElements.forEach(el => {
-    el.addEventListener('click', () => {
-        const channelName = el.getAttribute('data-channel');
-        switchChannel(channelName);
-    });
+    el.addEventListener('click', () => switchChannel(el.getAttribute('data-channel')));
 });
 
 messageInput.addEventListener('keydown', (e) => {
