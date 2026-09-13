@@ -1,8 +1,3 @@
-const { Controller } = $scramjetController;
-const { defaultConfig } = $scramjet;
-const EpoxyTransport = self.EpoxyTransport.default;
-let scramjetFrame;
-
 const tabsList = document.getElementById('tabsList');
 const newTabBtn = document.getElementById('newTabBtn');
 const sidebarLinks = document.querySelectorAll('.sidebar-link');
@@ -12,26 +7,9 @@ const urlInput = document.getElementById('urlInput');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const reloadBtn = document.getElementById('reloadBtn');
 
-async function initScramjet() {
-    try {
-        const registration = await navigator.serviceWorker.register("/sw.js");
-        await navigator.serviceWorker.ready;
-        const serviceworker = navigator.serviceWorker.controller || registration.active;
-        const transport = new EpoxyTransport({ wisp: "wss://wisp.mercurywork.shop/" });
-        await transport.init();
-        const scramjet = new Controller({ serviceworker, transport, scramjetConfig: defaultConfig });
-        await scramjet.wait();
-        scramjetFrame = scramjet.createFrame(appFrame);
-    } catch (err) {
-        console.error("Scramjet initialization failed:", err);
-    }
-}
-initScramjet();
-
 function applyCelsiusSettings() {
     const root = document.documentElement;
     const savedTheme = localStorage.getItem('celsius_theme');
-    
     if (savedTheme) {
         try {
             const theme = JSON.parse(savedTheme);
@@ -44,7 +22,6 @@ function applyCelsiusSettings() {
             document.body.style.color = theme.text;
         } catch (e) {}
     }
-
     const currentPreset = localStorage.getItem('celsius_preset');
     if (currentPreset) {
         document.body.style.backgroundImage = `url('../preset/${currentPreset}')`;
@@ -53,7 +30,6 @@ function applyCelsiusSettings() {
         document.body.style.backgroundAttachment = 'fixed';
     }
 }
-
 applyCelsiusSettings();
 
 window.addEventListener('message', (event) => {
@@ -62,10 +38,7 @@ window.addEventListener('message', (event) => {
             applyCelsiusSettings();
             if (appFrame && appFrame.contentWindow) {
                 try {
-                    appFrame.contentWindow.postMessage({ 
-                        action: 'updateTheme', 
-                        theme: JSON.parse(localStorage.getItem('celsius_theme')) 
-                    }, '*');
+                    appFrame.contentWindow.postMessage({ action: 'updateTheme', theme: JSON.parse(localStorage.getItem('celsius_theme')) }, '*');
                 } catch (e) {}
             }
         } else if (event.data.action === 'closeSettings') {
@@ -80,89 +53,87 @@ window.addEventListener('message', (event) => {
 
 function getIconSrc(url) {
     if (!url.startsWith('celsius://')) {
-        try {
-            const domain = new URL(url).hostname;
-            return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-        } catch {
-            return '../favicon.ico';
-        }
+        try { return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=32`; } catch { return '../favicon.ico'; }
     }
     let appName = url.replace('celsius://', '');
     if (appName === 'ai') appName = 'clanker';
     return appName === 'home' ? '../favicon.ico' : `../${appName}/favicon.ico`;
 }
 
-function createTab(title = 'New Tab', url = 'celsius://home') {
+function saveTabsState() {
+    const tabsData = Array.from(document.querySelectorAll('.tab')).map(tab => ({
+        title: tab.querySelector('.tab-title').textContent,
+        url: tab.dataset.url
+    }));
+    const activeTab = document.querySelector('.tab.active');
+    localStorage.setItem('celsius_tabs_list', JSON.stringify(tabsData));
+    localStorage.setItem('celsius_active_url', activeTab ? activeTab.dataset.url : 'celsius://home');
+}
+
+function restoreTabsState() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('celsius_tabs_list'));
+        const activeUrl = localStorage.getItem('celsius_active_url');
+        if (saved && Array.isArray(saved) && saved.length > 0) {
+            saved.forEach(item => createTab(item.title, item.url, false));
+            const targetTab = Array.from(document.querySelectorAll('.tab')).find(t => t.dataset.url === activeUrl);
+            if (targetTab) activateTab(targetTab);
+            else activateTab(document.querySelector('.tab'));
+            return;
+        }
+    } catch(e) {}
+    createTab('Celsius Home', 'celsius://home', true);
+}
+
+function createTab(title = 'New Tab', url = 'celsius://home', autoActivate = true) {
     const tab = document.createElement('div');
     tab.className = 'tab';
-    
-    const closeBtnHTML = `
-        <button class="close-tab">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>`;
-    
+    tab.dataset.url = url;
     tab.innerHTML = `
         <img src="${getIconSrc(url)}" alt="" class="tab-icon">
         <span class="tab-title">${title}</span>
-        ${closeBtnHTML}
-    `;
-
-    tab.dataset.url = url;
+        <button class="close-tab">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>`;
 
     tab.addEventListener('click', (e) => {
-        if (!e.target.closest('.close-tab')) {
-            activateTab(tab);
+        if (!e.target.closest('.close-tab')) activateTab(tab);
+    });
+
+    tab.querySelector('.close-tab').addEventListener('click', () => {
+        const wasActive = tab.classList.contains('active');
+        tab.remove();
+        const remainingTabs = document.querySelectorAll('.tab');
+        if (remainingTabs.length > 0 && wasActive) {
+            activateTab(remainingTabs[remainingTabs.length - 1]);
+        } else if (remainingTabs.length === 0) {
+            appFrame.style.display = 'none';
+            homeView.style.display = 'flex';
+            urlInput.value = '';
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            localStorage.removeItem('celsius_tabs_list');
+        } else {
+            saveTabsState();
         }
     });
 
-    const closeBtn = tab.querySelector('.close-tab');
-    closeBtn.addEventListener('click', () => {
-        tab.style.animation = 'none';
-        tab.style.opacity = '0';
-        tab.style.width = '0';
-        tab.style.padding = '0';
-        tab.style.border = 'none';
-        tab.style.transition = 'all 0.2s';
-        
-        setTimeout(() => {
-            const wasActive = tab.classList.contains('active');
-            tab.remove();
-            
-            const remainingTabs = document.querySelectorAll('.tab');
-            if (remainingTabs.length > 0 && wasActive) {
-                activateTab(remainingTabs[remainingTabs.length - 1]);
-            } else if (remainingTabs.length === 0) {
-                appFrame.style.display = 'none';
-                homeView.style.display = 'flex';
-                urlInput.value = '';
-                sidebarLinks.forEach(l => l.classList.remove('active'));
-                const homeLink = document.querySelector('[data-app="celsius://home"]');
-                if (homeLink) homeLink.classList.add('active');
-            }
-        }, 200);
-    });
-
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    
     tabsList.appendChild(tab);
-    updateContent(url);
+    if (autoActivate) activateTab(tab);
+    saveTabsState();
 }
 
 function activateTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     updateContent(tab.dataset.url);
+    saveTabsState();
 }
 
 function updateContent(appUrl) {
     urlInput.value = appUrl === 'celsius://home' ? '' : appUrl;
-    
     sidebarLinks.forEach(link => {
         link.classList.remove('active');
-        if (link.dataset.app === appUrl) {
-            link.classList.add('active');
-        }
+        if (link.dataset.app === appUrl) link.classList.add('active');
     });
 
     if (appUrl === 'celsius://home') {
@@ -172,19 +143,15 @@ function updateContent(appUrl) {
     } else if (appUrl.startsWith('celsius://')) {
         homeView.style.display = 'none';
         appFrame.style.display = 'block';
-        
         let folderName = appUrl.replace('celsius://', '');
-        if (folderName === 'ai') {
-            folderName = 'clanker';
-        }
-        
-        const htmlFile = '../' + folderName + '/index.html';
-        appFrame.src = htmlFile;
+        if (folderName === 'ai') folderName = 'clanker';
+        appFrame.src = '../' + folderName + '/index.html';
     } else {
         homeView.style.display = 'none';
         appFrame.style.display = 'block';
-        if (scramjetFrame) {
-            scramjetFrame.go(appUrl);
+        if (window.scramjetReady && window.scramjetCtrl) {
+            if (!window.scramjetFrame) window.scramjetFrame = window.scramjetCtrl.createFrame(appFrame);
+            window.scramjetFrame.go(appUrl);
         } else {
             appFrame.src = appUrl;
         }
@@ -195,73 +162,61 @@ urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         let newUrl = urlInput.value.trim();
         if (!newUrl) return;
-        
         if (!newUrl.startsWith('celsius://') && !newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
-            if (newUrl.includes('.') && !newUrl.includes(' ')) {
-                newUrl = 'https://' + newUrl;
-            } else {
-                newUrl = 'https://www.google.com/search?q=' + encodeURIComponent(newUrl);
-            }
+            newUrl = newUrl.includes('.') && !newUrl.includes(' ') ? 'https://' + newUrl : 'https://www.google.com/search?q=' + encodeURIComponent(newUrl);
         }
-        
         const activeTab = document.querySelector('.tab.active');
         if (activeTab) {
             activeTab.dataset.url = newUrl;
-            
             let displayTitle = newUrl;
-            try {
-                if (newUrl.startsWith('http')) {
-                    displayTitle = new URL(newUrl).hostname;
-                }
-            } catch(err){}
-            
+            try { displayTitle = new URL(newUrl).hostname; } catch(e){}
             activeTab.querySelector('.tab-title').textContent = displayTitle;
             activeTab.querySelector('.tab-icon').src = getIconSrc(newUrl);
             updateContent(newUrl);
+            saveTabsState();
         } else {
-            createTab(newUrl, newUrl);
+            createTab(newUrl, newUrl, true);
         }
     }
 });
 
 newTabBtn.addEventListener('click', () => {
-    createTab('Celsius Home', 'celsius://home');
+    createTab('Celsius Home', 'celsius://home', true);
 });
 
 sidebarLinks.forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
-        
         const appUrl = link.dataset.app;
-        let appName = appUrl.replace('celsius://', '');
-        
-        const formattedTitle = appName.charAt(0).toUpperCase() + appName.slice(1);
-        const finalTitle = appName === 'home' ? 'Celsius Home' : formattedTitle;
-        
-        createTab(finalTitle, appUrl);
+        const existingTab = Array.from(document.querySelectorAll('.tab')).find(t => t.dataset.url === appUrl);
+        if (existingTab) {
+            activateTab(existingTab);
+        } else {
+            let appName = appUrl.replace('celsius://', '');
+            const formattedTitle = appName.charAt(0).toUpperCase() + appName.slice(1);
+            createTab(appName === 'home' ? 'Celsius Home' : formattedTitle, appUrl, true);
+        }
     });
 });
 
 reloadBtn.addEventListener('click', () => {
     if (appFrame.style.display === 'block') {
         const activeTab = document.querySelector('.tab.active');
-        if (activeTab) {
-            const currentUrl = activeTab.dataset.url;
-            if (scramjetFrame && !currentUrl.startsWith('celsius://')) {
-                scramjetFrame.go(currentUrl);
-            } else {
-                appFrame.src = appFrame.src;
-            }
-        }
+        if (activeTab) updateContent(activeTab.dataset.url);
     }
 });
 
 fullscreenBtn.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-            console.error(`Error attempting to enable fullscreen: ${err.message}`);
-        });
+    const elem = document.documentElement;
+    if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+        if (elem.requestFullscreen) elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
     } else {
-        document.exitFullscreen();
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
     }
 });
+
+restoreTabsState();
