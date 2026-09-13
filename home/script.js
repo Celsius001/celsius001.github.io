@@ -1,3 +1,8 @@
+const { Controller } = $scramjetController;
+const { defaultConfig } = $scramjet;
+const EpoxyTransport = self.EpoxyTransport.default;
+let scramjetFrame;
+
 const tabsList = document.getElementById('tabsList');
 const newTabBtn = document.getElementById('newTabBtn');
 const sidebarLinks = document.querySelectorAll('.sidebar-link');
@@ -6,6 +11,22 @@ const homeView = document.getElementById('homeView');
 const urlInput = document.getElementById('urlInput');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const reloadBtn = document.getElementById('reloadBtn');
+
+async function initScramjet() {
+    try {
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        await navigator.serviceWorker.ready;
+        const serviceworker = navigator.serviceWorker.controller || registration.active;
+        const transport = new EpoxyTransport({ wisp: "wss://wisp.mercurywork.shop/" });
+        await transport.init();
+        const scramjet = new Controller({ serviceworker, transport, scramjetConfig: defaultConfig });
+        await scramjet.wait();
+        scramjetFrame = scramjet.createFrame(appFrame);
+    } catch (err) {
+        console.error("Scramjet initialization failed:", err);
+    }
+}
+initScramjet();
 
 function applyCelsiusSettings() {
     const root = document.documentElement;
@@ -58,7 +79,14 @@ window.addEventListener('message', (event) => {
 });
 
 function getIconSrc(url) {
-    if (!url.startsWith('celsius://')) return '../favicon.ico';
+    if (!url.startsWith('celsius://')) {
+        try {
+            const domain = new URL(url).hostname;
+            return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+        } catch {
+            return '../favicon.ico';
+        }
+    }
     let appName = url.replace('celsius://', '');
     if (appName === 'ai') appName = 'clanker';
     return appName === 'home' ? '../favicon.ico' : `../${appName}/favicon.ico`;
@@ -128,7 +156,7 @@ function activateTab(tab) {
 }
 
 function updateContent(appUrl) {
-    urlInput.value = appUrl;
+    urlInput.value = appUrl === 'celsius://home' ? '' : appUrl;
     
     sidebarLinks.forEach(link => {
         link.classList.remove('active');
@@ -155,22 +183,39 @@ function updateContent(appUrl) {
     } else {
         homeView.style.display = 'none';
         appFrame.style.display = 'block';
-        appFrame.src = appUrl;
+        if (scramjetFrame) {
+            scramjetFrame.go(appUrl);
+        } else {
+            appFrame.src = appUrl;
+        }
     }
 }
 
 urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         let newUrl = urlInput.value.trim();
+        if (!newUrl) return;
         
-        if (!newUrl.startsWith('celsius://') && !newUrl.startsWith('http')) {
-            newUrl = 'https://' + newUrl;
+        if (!newUrl.startsWith('celsius://') && !newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+            if (newUrl.includes('.') && !newUrl.includes(' ')) {
+                newUrl = 'https://' + newUrl;
+            } else {
+                newUrl = 'https://www.google.com/search?q=' + encodeURIComponent(newUrl);
+            }
         }
         
         const activeTab = document.querySelector('.tab.active');
         if (activeTab) {
             activeTab.dataset.url = newUrl;
-            activeTab.querySelector('.tab-title').textContent = newUrl;
+            
+            let displayTitle = newUrl;
+            try {
+                if (newUrl.startsWith('http')) {
+                    displayTitle = new URL(newUrl).hostname;
+                }
+            } catch(err){}
+            
+            activeTab.querySelector('.tab-title').textContent = displayTitle;
             activeTab.querySelector('.tab-icon').src = getIconSrc(newUrl);
             updateContent(newUrl);
         } else {
@@ -199,7 +244,15 @@ sidebarLinks.forEach(link => {
 
 reloadBtn.addEventListener('click', () => {
     if (appFrame.style.display === 'block') {
-        appFrame.src = appFrame.src;
+        const activeTab = document.querySelector('.tab.active');
+        if (activeTab) {
+            const currentUrl = activeTab.dataset.url;
+            if (scramjetFrame && !currentUrl.startsWith('celsius://')) {
+                scramjetFrame.go(currentUrl);
+            } else {
+                appFrame.src = appFrame.src;
+            }
+        }
     }
 });
 
