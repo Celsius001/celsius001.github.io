@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, updatePassword, updateProfile, deleteUser, signOut, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, updatePassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -15,266 +15,141 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// DOM elements
+const avatarContainer = document.getElementById('avatarContainer');
+const avatarInput = document.getElementById('avatarInput');
+const profileAvatar = document.getElementById('profileAvatar');
 const userEmailInput = document.getElementById('userEmail');
 const usernameInput = document.getElementById('usernameInput');
 const profileForm = document.getElementById('profileForm');
 const passwordForm = document.getElementById('passwordForm');
 const newPasswordInput = document.getElementById('newPassword');
 const deleteAccountBtn = document.getElementById('deleteAccountBtn');
-const logoutBtn = document.getElementById('logoutBtn');
 const backHomeBtn = document.getElementById('backHomeBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 const statMessages = document.getElementById('statMessages');
 const statGameTime = document.getElementById('statGameTime');
-const avatarContainer = document.getElementById('avatarContainer');
-const avatarInput = document.getElementById('avatarInput');
-const profileAvatar = document.getElementById('profileAvatar');
 
-let currentUser = null;
-let unsubUser = null;
-let unsubChannels = [];
-
-function applyCelsiusSettings() {
-    const root = document.documentElement;
-    const savedTheme = localStorage.getItem('celsius_theme');
-    
-    if (savedTheme) {
-        try {
-            const theme = JSON.parse(savedTheme);
-            root.style.setProperty('--bg-main', theme.bg);
-            root.style.setProperty('--text-primary', theme.text);
-            root.style.setProperty('--accent-color', theme.accent);
-            root.style.setProperty('--bg-panel', theme.panel);
-            root.style.setProperty('--bg-sidebar', theme.sidebar);
-            document.body.style.backgroundColor = theme.bg;
-            document.body.style.color = theme.text;
-        } catch (e) {}
-    }
+// Game Tracker background ticker
+function updateGameTimeDisplay() {
+    let storedSeconds = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
+    const hours = Math.floor(storedSeconds / 3600);
+    const minutes = Math.floor((storedSeconds % 3600) / 60);
+    statGameTime.textContent = `${hours}h ${minutes}m`;
 }
 
-applyCelsiusSettings();
+// Tick game seconds every 60 seconds (or accumulate stored session time)
+setInterval(() => {
+    let storedSeconds = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
+    storedSeconds += 60;
+    localStorage.setItem('celsius_game_seconds', storedSeconds.toString());
+    updateGameTimeDisplay();
+}, 60000);
+updateGameTimeDisplay();
 
-window.addEventListener('message', (event) => {
-    if (event.data) {
-        if (event.data.action === 'updateTheme' || event.data.action === 'updateSettings') {
-            applyCelsiusSettings();
-        }
+// Load User profile & chat count metrics
+async function loadUserMetricsAndProfile(user) {
+    if (user.email) userEmailInput.value = user.email;
+    const storedUsername = user.displayName || localStorage.getItem('celsius_username') || user.email?.split('@')[0] || 'User';
+    usernameInput.value = storedUsername;
+
+    // Load avatar from Firestore doc or local storage or auth profile
+    const userDocRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userDocRef).catch(() => null);
+    if (userSnap && userSnap.exists() && userSnap.data().avatar) {
+        profileAvatar.src = userSnap.data().avatar;
+    } else if (localStorage.getItem('celsius_avatar')) {
+        profileAvatar.src = localStorage.getItem('celsius_avatar');
     }
-});
 
-backHomeBtn.addEventListener('click', () => {
-    window.top.location.href = "../home/index.html";
-});
-
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        currentUser = user;
-        userEmailInput.value = user.email || "";
-        usernameInput.value = user.displayName || "";
-        if (user.photoURL) {
-            profileAvatar.src = user.photoURL;
-        } else {
-            profileAvatar.src = "../favicon.ico";
-        }
-        setupDataFeed(user);
-    } else {
-        window.top.location.replace("../index.html");
-    }
-});
-
-function setupDataFeed(user) {
-    unsubUser = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-        let gameMinutes = 0;
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.gameMinutes) {
-                gameMinutes = data.gameMinutes;
-            } else if (data.gameHours) {
-                gameMinutes = Math.round(data.gameHours * 60);
-            }
-            if (data.photoURL) {
-                profileAvatar.src = data.photoURL;
-            }
-        }
-        const h = Math.floor(gameMinutes / 60);
-        const m = gameMinutes % 60;
-        statGameTime.textContent = `${h}h ${m}m`;
-    });
-
-    const channels = ["general", "development", "design", "off-topic", "music", "gaming", "lounge"];
-    let channelDocs = {};
-
-    const evaluateTotalMessages = () => {
-        let total = 0;
-        Object.values(channelDocs).forEach(docs => {
-            if (docs) {
-                docs.forEach(d => {
-                    const data = d.data();
-                    if (data.user && (data.user === user.displayName || data.user === user.email)) {
-                        total++;
-                    }
-                });
-            }
-        });
-        statMessages.textContent = total;
-    };
-
-    unsubChannels.forEach(unsub => unsub());
-    unsubChannels = [];
-
-    channels.forEach(ch => {
-        const ref = collection(db, `messages_${ch}`);
-        const unsub = onSnapshot(ref, (snapshot) => {
-            channelDocs[ch] = snapshot.docs;
-            evaluateTotalMessages();
-        }, () => {});
-        unsubChannels.push(unsub);
-    });
-}
-
-function processImageFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const max = 800;
-                if (width > height) {
-                    if (width > max) {
-                        height *= max / width;
-                        width = max;
-                    }
-                } else {
-                    if (height > max) {
-                        width *= max / height;
-                        height = max;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.95));
-            };
-            img.onerror = reject;
-            img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-avatarContainer.addEventListener('click', () => {
-    avatarInput.click();
-});
-
-avatarInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file || !currentUser) return;
-    if (!file.type.startsWith('image/')) {
-        alert("Please select a valid image file.");
-        return;
-    }
+    // Calculate/Load chat messages sent count across known channels
     try {
-        const optimizedUrl = await processImageFile(file);
-        await updateProfile(currentUser, { photoURL: optimizedUrl });
-        await setDoc(doc(db, "users", currentUser.uid), { photoURL: optimizedUrl }, { merge: true });
-        profileAvatar.src = optimizedUrl;
-        alert("Profile picture updated successfully!");
-    } catch (err) {
-        alert("Failed to update profile picture. Please try another image.");
+        const channels = ['general', 'music', 'gaming', 'lounge'];
+        let totalCount = 0;
+        for (const ch of channels) {
+            const q = query(collection(db, `messages_${ch}`), where('user', '==', storedUsername));
+            const snap = await getDocs(q);
+            totalCount += snap.size;
+        }
+        statMessages.textContent = totalCount;
+    } catch (e) {
+        statMessages.textContent = localStorage.getItem('celsius_messages_count') || '0';
+    }
+}
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        await loadUserMetricsAndProfile(user);
+    } else {
+        window.location.href = '../index.html';
     }
 });
 
+// Image file upload handler (PNG, JPEG, WebP, etc.)
+avatarContainer.addEventListener('click', () => avatarInput.click());
+
+avatarInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const dataUrl = event.target.result;
+        profileAvatar.src = dataUrl;
+        localStorage.setItem('celsius_avatar', dataUrl);
+        if (auth.currentUser) {
+            await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: dataUrl }, { merge: true }).catch(() => {});
+        }
+    };
+    reader.readAsDataURL(file);
+});
+
+// Profile form submission (username update)
 profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!currentUser) return;
-    const nameVal = usernameInput.value.trim();
-    if (!nameVal) return;
-    try {
-        await updateProfile(currentUser, { displayName: nameVal });
-        await setDoc(doc(db, "users", currentUser.uid), { username: nameVal }, { merge: true });
-        localStorage.setItem('celsius_username', nameVal);
-        alert("Username updated successfully!");
-    } catch (err) {
-        alert("Failed to update username.");
+    const newName = usernameInput.value.trim();
+    if (!newName) return;
+    localStorage.setItem('celsius_username', newName);
+    if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { username: newName }, { merge: true }).catch(() => {});
     }
+    alert('Profile updated successfully!');
 });
 
+// Password update form
 passwordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!currentUser) return;
-    const pwdVal = newPasswordInput.value;
-    if (pwdVal.length < 6) {
-        alert("Password must be at least 6 characters long.");
+    const pwd = newPasswordInput.value;
+    if (pwd.length < 6) {
+        alert('Password must be at least 6 characters.');
         return;
     }
     try {
-        await updatePassword(currentUser, pwdVal);
-        alert("Password updated successfully!");
+        await updatePassword(auth.currentUser, pwd);
+        alert('Password updated successfully!');
         newPasswordInput.value = '';
     } catch (err) {
-        alert("Failed to update password. Please sign out and sign back in before changing your password.");
+        alert('Error updating password: ' + err.message);
     }
 });
 
+// Delete account
 deleteAccountBtn.addEventListener('click', async () => {
-    if (!currentUser) return;
-    if (!confirm("Are you sure you want to permanently delete your account? All data will be lost.")) return;
-
-    const cleanupAndRedirect = async () => {
+    if (confirm('Are you sure you want to permanently delete your account?')) {
         try {
-            const uid = currentUser.uid;
-            const chatsRef = collection(db, "users", uid, "chats");
-            const chatsSnap = await getDocs(chatsRef);
-            for (const cDoc of chatsSnap.docs) {
-                const msgsRef = collection(db, "users", uid, "chats", cDoc.id, "messages");
-                const msgsSnap = await getDocs(msgsRef);
-                for (const mDoc of msgsSnap.docs) {
-                    await deleteDoc(doc(db, "users", uid, "chats", cDoc.id, "messages", mDoc.id));
-                }
-                await deleteDoc(doc(db, "users", uid, "chats", cDoc.id));
-            }
-            await deleteDoc(doc(db, "users", uid));
-            await deleteUser(currentUser);
-        } catch (err) {}
-        
-        localStorage.clear();
-        sessionStorage.clear();
-        try {
-            await signOut(auth);
-        } catch (e) {}
-        window.top.location.replace("../index.html");
-    };
-
-    try {
-        await cleanupAndRedirect();
-    } catch (error) {
-        if (error.code === 'auth/requires-recent-login') {
-            const pwd = prompt("For security, please enter your password to confirm account deletion:");
-            if (!pwd) return;
-            try {
-                const credential = EmailAuthProvider.credential(currentUser.email, pwd);
-                await reauthenticateWithCredential(currentUser, credential);
-                await cleanupAndRedirect();
-            } catch (reauthErr) {
-                alert("Incorrect password or re-authentication failed.");
-            }
-        } else {
-            alert("Deletion failed: " + error.message);
+            await deleteUser(auth.currentUser);
+            window.location.href = '../index.html';
+        } catch (err) {
+            alert('Re-authentication required or error deleting account: ' + err.message);
         }
     }
+});
+
+// Navigation actions
+backHomeBtn.addEventListener('click', () => {
+    window.location.href = '../index.html';
 });
 
 logoutBtn.addEventListener('click', async () => {
-    if (unsubUser) unsubUser();
-    unsubChannels.forEach(unsub => unsub());
-    localStorage.clear();
-    sessionStorage.clear();
-    try {
-        await signOut(auth);
-    } catch (err) {}
-    window.top.location.replace("../index.html");
+    await signOut(auth);
+    window.location.href = '../index.html';
 });
