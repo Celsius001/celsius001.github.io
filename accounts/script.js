@@ -69,32 +69,50 @@ function renderGameTime(totalSeconds) {
     statGameTime.textContent = `${hours}h ${minutes}m`;
 }
 
+function calculateDocSeconds(data) {
+    if (typeof data.durationSeconds === 'number') return data.durationSeconds;
+    if (typeof data.seconds === 'number') return data.seconds;
+    if (typeof data.timeSpent === 'number') return data.timeSpent;
+    if (data.startTime && data.endTime) {
+        const start = typeof data.startTime.toMillis === 'function' ? data.startTime.toMillis() : new Date(data.startTime).getTime();
+        const end = typeof data.endTime.toMillis === 'function' ? data.endTime.toMillis() : new Date(data.endTime).getTime();
+        if (!isNaN(start) && !isNaN(end) && end >= start) {
+            return Math.floor((end - start) / 1000);
+        }
+    }
+    return Number(data.duration || 0);
+}
+
 function listenToGamesFolder(uid, username) {
     if (gamesUnsubscribe) gamesUnsubscribe();
     
-    const localSeconds = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
-
-    const q = query(collection(db, 'games'), where('userId', '==', uid));
-    gamesUnsubscribe = onSnapshot(q, (snapshot) => {
-        let totalSecs = localSeconds;
+    const qById = query(collection(db, 'games'), where('userId', '==', uid));
+    gamesUnsubscribe = onSnapshot(qById, async (snapshot) => {
+        let totalSecs = 0;
         snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            totalSecs += Number(data.durationSeconds || data.seconds || data.timeSpent || data.duration || 0);
+            totalSecs += calculateDocSeconds(docSnap.data());
         });
+        if (totalSecs === 0 && username) {
+            const qByName = query(collection(db, 'games'), where('user', '==', username));
+            const nameSnap = await getDocs(qByName);
+            nameSnap.forEach((docSnap) => {
+                totalSecs += calculateDocSeconds(docSnap.data());
+            });
+        }
         localStorage.setItem('celsius_game_seconds', totalSecs.toString());
         renderGameTime(totalSecs);
     }, async () => {
         try {
             const qUser = query(collection(db, 'games'), where('user', '==', username));
             const snap = await getDocs(qUser);
-            let totalSecs = localSeconds;
+            let totalSecs = 0;
             snap.forEach((docSnap) => {
-                const data = docSnap.data();
-                totalSecs += Number(data.durationSeconds || data.seconds || data.timeSpent || data.duration || 0);
+                totalSecs += calculateDocSeconds(docSnap.data());
             });
             renderGameTime(totalSecs);
         } catch (e) {
-            renderGameTime(localSeconds);
+            const fallback = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
+            renderGameTime(fallback);
         }
     });
 }
