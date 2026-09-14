@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, updatePassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -15,7 +15,37 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// DOM elements
+function applyCelsiusTheme() {
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem('celsius_theme');
+    if (savedTheme) {
+        try {
+            const theme = JSON.parse(savedTheme);
+            root.style.setProperty('--bg-main', theme.bg);
+            root.style.setProperty('--text-primary', theme.text);
+            root.style.setProperty('--accent-color', theme.accent);
+            root.style.setProperty('--bg-panel', theme.panel);
+            root.style.setProperty('--bg-sidebar', theme.sidebar);
+            document.body.style.backgroundColor = theme.bg;
+            document.body.style.color = theme.text;
+        } catch (e) {}
+    }
+}
+
+applyCelsiusTheme();
+
+window.addEventListener('storage', (e) => {
+    if (e.key === 'celsius_theme') {
+        applyCelsiusTheme();
+    }
+});
+
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.action === 'updateTheme') {
+        applyCelsiusTheme();
+    }
+});
+
 const avatarContainer = document.getElementById('avatarContainer');
 const avatarInput = document.getElementById('avatarInput');
 const profileAvatar = document.getElementById('profileAvatar');
@@ -30,44 +60,64 @@ const logoutBtn = document.getElementById('logoutBtn');
 const statMessages = document.getElementById('statMessages');
 const statGameTime = document.getElementById('statGameTime');
 
-// Game Tracker background ticker
-function updateGameTimeDisplay() {
-    let storedSeconds = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
-    const hours = Math.floor(storedSeconds / 3600);
-    const minutes = Math.floor((storedSeconds % 3600) / 60);
+let gamesUnsubscribe = null;
+let currentUsername = "";
+
+function renderGameTime(totalSeconds) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
     statGameTime.textContent = `${hours}h ${minutes}m`;
 }
 
-// Tick game seconds every 60 seconds (or accumulate stored session time)
-setInterval(() => {
-    let storedSeconds = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
-    storedSeconds += 60;
-    localStorage.setItem('celsius_game_seconds', storedSeconds.toString());
-    updateGameTimeDisplay();
-}, 60000);
-updateGameTimeDisplay();
+function listenToGamesFolder(uid, username) {
+    if (gamesUnsubscribe) gamesUnsubscribe();
+    
+    const localSeconds = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
 
-// Load User profile & chat count metrics
+    const q = query(collection(db, 'games'), where('userId', '==', uid));
+    gamesUnsubscribe = onSnapshot(q, (snapshot) => {
+        let totalSecs = localSeconds;
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            totalSecs += Number(data.durationSeconds || data.seconds || data.timeSpent || data.duration || 0);
+        });
+        localStorage.setItem('celsius_game_seconds', totalSecs.toString());
+        renderGameTime(totalSecs);
+    }, async () => {
+        try {
+            const qUser = query(collection(db, 'games'), where('user', '==', username));
+            const snap = await getDocs(qUser);
+            let totalSecs = localSeconds;
+            snap.forEach((docSnap) => {
+                const data = docSnap.data();
+                totalSecs += Number(data.durationSeconds || data.seconds || data.timeSpent || data.duration || 0);
+            });
+            renderGameTime(totalSecs);
+        } catch (e) {
+            renderGameTime(localSeconds);
+        }
+    });
+}
+
 async function loadUserMetricsAndProfile(user) {
     if (user.email) userEmailInput.value = user.email;
-    const storedUsername = user.displayName || localStorage.getItem('celsius_username') || user.email?.split('@')[0] || 'User';
-    usernameInput.value = storedUsername;
+    currentUsername = user.displayName || localStorage.getItem('celsius_username') || user.email?.split('@')[0] || 'User';
+    usernameInput.value = currentUsername;
 
-    // Load avatar from Firestore doc or local storage or auth profile
     const userDocRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userDocRef).catch(() => null);
-    if (userSnap && userSnap.exists() && userSnap.data().avatar) {
-        profileAvatar.src = userSnap.data().avatar;
+    if (userSnap && userSnap.exists()) {
+        const data = userSnap.data();
+        if (data.avatar) profileAvatar.src = data.avatar;
     } else if (localStorage.getItem('celsius_avatar')) {
         profileAvatar.src = localStorage.getItem('celsius_avatar');
     }
 
-    // Calculate/Load chat messages sent count across known channels
     try {
         const channels = ['general', 'music', 'gaming', 'lounge'];
         let totalCount = 0;
         for (const ch of channels) {
-            const q = query(collection(db, `messages_${ch}`), where('user', '==', storedUsername));
+            const q = query(collection(db, `messages_${ch}`), where('user', '==', currentUsername));
             const snap = await getDocs(q);
             totalCount += snap.size;
         }
@@ -75,17 +125,19 @@ async function loadUserMetricsAndProfile(user) {
     } catch (e) {
         statMessages.textContent = localStorage.getItem('celsius_messages_count') || '0';
     }
+
+    listenToGamesFolder(user.uid, currentUsername);
 }
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         await loadUserMetricsAndProfile(user);
     } else {
+        if (gamesUnsubscribe) gamesUnsubscribe();
         window.location.href = '../index.html';
     }
 });
 
-// Image file upload handler (PNG, JPEG, WebP, etc.)
 avatarContainer.addEventListener('click', () => avatarInput.click());
 
 avatarInput.addEventListener('change', (e) => {
@@ -103,19 +155,18 @@ avatarInput.addEventListener('change', (e) => {
     reader.readAsDataURL(file);
 });
 
-// Profile form submission (username update)
 profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const newName = usernameInput.value.trim();
     if (!newName) return;
     localStorage.setItem('celsius_username', newName);
+    currentUsername = newName;
     if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), { username: newName }, { merge: true }).catch(() => {});
     }
     alert('Profile updated successfully!');
 });
 
-// Password update form
 passwordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pwd = newPasswordInput.value;
@@ -132,7 +183,6 @@ passwordForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Delete account
 deleteAccountBtn.addEventListener('click', async () => {
     if (confirm('Are you sure you want to permanently delete your account?')) {
         try {
@@ -144,12 +194,12 @@ deleteAccountBtn.addEventListener('click', async () => {
     }
 });
 
-// Navigation actions
 backHomeBtn.addEventListener('click', () => {
     window.location.href = '../index.html';
 });
 
 logoutBtn.addEventListener('click', async () => {
+    if (gamesUnsubscribe) gamesUnsubscribe();
     await signOut(auth);
     window.location.href = '../index.html';
 });
