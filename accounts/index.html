@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Celsius - Account Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
 </head>
 <body>
     <div class="dashboard-wrapper">
@@ -62,12 +63,12 @@
                 <section class="card">
                     <h3>Profile Information</h3>
                     <div class="profile-row">
-                        <div class="avatar-container" id="avatarContainer" title="Click to change avatar">
+                        <div class="avatar-container" id="avatarContainer" title="Click to change avatar (PNG, JPEG, WebP)">
                             <img id="profileAvatar" src="../favicon.ico" alt="Avatar">
                             <div class="avatar-edit-badge">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                             </div>
-                            <input type="file" id="avatarInput" accept="image/*" hidden>
+                            <input type="file" id="avatarInput" accept="image/png, image/jpeg, image/webp, image/gif" hidden>
                         </div>
                         <div class="profile-details">
                             <div class="input-group">
@@ -107,9 +108,6 @@
         </main>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"></script>
     <script src="script.js" type="module"></script>
 </body>
 </html>
