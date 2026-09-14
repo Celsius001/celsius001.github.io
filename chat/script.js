@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { ChatUtilities } from "./chat-utilities.js";
 
@@ -118,6 +118,22 @@ function listenToOnlineUsers() {
     }, () => {});
 }
 
+async function purgeExpiredMessages(channelName) {
+    try {
+        const q = query(collection(db, `messages_${channelName}`));
+        const snapshot = await getDocs(q);
+        const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+        snapshot.forEach(async (docSnap) => {
+            const data = docSnap.data();
+            if (data.createdAt && typeof data.createdAt.toMillis === 'function') {
+                if (data.createdAt.toMillis() < cutoff) {
+                    await deleteDoc(docSnap.ref).catch(() => {});
+                }
+            }
+        });
+    } catch (e) {}
+}
+
 function switchChannel(channelName) {
     currentChannel = channelName;
     currentChannelTitle.textContent = currentChannel;
@@ -126,6 +142,7 @@ function switchChannel(channelName) {
         el.classList.toggle('active', el.getAttribute('data-channel') === currentChannel);
     });
     chatUtils.clearReply();
+    purgeExpiredMessages(channelName);
     listenToMessages();
 }
 
@@ -166,6 +183,13 @@ function appendMessage(msgId, data) {
         content.appendChild(replyTag);
     }
 
+    if (data.forwardedFrom) {
+        const fwdTag = document.createElement('div');
+        fwdTag.style.cssText = 'font-size:11px;color:var(--text-secondary);margin-bottom:2px;display:flex;align-items:center;gap:4px;';
+        fwdTag.innerHTML = `➡️ Forwarded from #${chatUtils.escapeHtml(data.forwardedFrom)}`;
+        content.appendChild(fwdTag);
+    }
+
     const header = document.createElement('div');
     header.className = 'message-header';
     header.innerHTML = `<span class="message-author">${chatUtils.escapeHtml(data.user || 'Anonymous')}</span><span class="message-timestamp">${formatTime(data.createdAt)}</span>`;
@@ -178,13 +202,9 @@ function appendMessage(msgId, data) {
     content.appendChild(text);
     content.appendChild(chatUtils.renderReactions(msgId, data));
 
-    const toolbar = chatUtils.createActionToolbar(msgId, data);
+    chatUtils.attachMessageContextMenu(msgDiv, msgId, data);
     msgDiv.appendChild(avatar);
     msgDiv.appendChild(content);
-    msgDiv.appendChild(toolbar);
-
-    msgDiv.addEventListener('mouseenter', () => { toolbar.style.opacity = '1'; toolbar.style.pointerEvents = 'auto'; });
-    msgDiv.addEventListener('mouseleave', () => { toolbar.style.opacity = '0'; toolbar.style.pointerEvents = 'none'; });
 
     messagesList.appendChild(msgDiv);
 }
