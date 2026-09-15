@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { ChatUtilities } from "./chat-utilities.js";
 
 const firebaseConfig = {
@@ -17,6 +17,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 let currentUser = "";
+let currentAvatar = "../favicon.ico";
 let currentChannel = "general";
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
@@ -24,6 +25,7 @@ let presenceInterval = null;
 
 const channelElements = document.querySelectorAll('.channel-item');
 const currentChannelTitle = document.getElementById('current-channel-title');
+const welcomeChannelName = document.getElementById('welcome-channel-name');
 const messagesList = document.getElementById('messages-list');
 const messagesContainer = document.getElementById('messages-container');
 const messageInput = document.getElementById('message-input');
@@ -31,6 +33,7 @@ const inputArea = document.getElementById('input-area');
 const usersList = document.getElementById('users-list');
 const onlineCount = document.getElementById('online-count');
 const currentUsernameDisplay = document.getElementById('current-username');
+const currentUserAvatarDisplay = document.getElementById('current-user-avatar');
 
 const chatUtils = new ChatUtilities({
     db,
@@ -51,8 +54,8 @@ function applyCelsiusSettings() {
             root.style.setProperty('--accent-color', theme.accent);
             root.style.setProperty('--bg-panel', theme.panel);
             root.style.setProperty('--bg-sidebar', theme.sidebar);
-            document.body.style.backgroundColor = theme.bg;
-            document.body.style.color = theme.text;
+            root.style.setProperty('--bg-hover', theme.panel);
+            root.style.setProperty('--bg-message-hover', 'rgba(255,255,255,0.05)');
         } catch (e) {}
     }
 }
@@ -66,19 +69,23 @@ window.addEventListener('message', (event) => {
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        if (user.displayName) {
-            currentUser = user.displayName;
-        } else {
-            let storedName = localStorage.getItem('celsius_username');
-            if (!storedName) {
-                storedName = prompt("Enter your username to join celsius|chat:", "");
-                if (!storedName || storedName.trim() === "") storedName = "User_" + Math.floor(1000 + Math.random() * 9000);
-            }
-            currentUser = storedName.trim();
-            localStorage.setItem('celsius_username', currentUser);
-            await updateProfile(user, { displayName: currentUser }).catch(() => {});
+        const userDocRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef).catch(() => null);
+        
+        if (userSnap && userSnap.exists()) {
+            const data = userSnap.data();
+            if (data.username) currentUser = data.username;
+            if (data.avatar) currentAvatar = data.avatar;
         }
+
+        if (!currentUser) currentUser = user.displayName || localStorage.getItem('celsius_username') || "User_" + Math.floor(1000 + Math.random() * 9000);
+        if (currentAvatar === "../favicon.ico" && localStorage.getItem('celsius_avatar')) {
+            currentAvatar = localStorage.getItem('celsius_avatar');
+        }
+        
         currentUsernameDisplay.textContent = currentUser;
+        currentUserAvatarDisplay.src = currentAvatar;
+
         registerUserPresence();
         switchChannel('general');
     } else {
@@ -89,7 +96,11 @@ onAuthStateChanged(auth, async (user) => {
 function registerUserPresence() {
     const userRef = doc(db, 'online_users', currentUser);
     const sendHeartbeat = () => {
-        setDoc(userRef, { username: currentUser, lastSeen: Date.now() }, { merge: true }).catch(() => {});
+        setDoc(userRef, { 
+            username: currentUser, 
+            avatar: currentAvatar,
+            lastSeen: Date.now() 
+        }, { merge: true }).catch(() => {});
     };
     sendHeartbeat();
     if (presenceInterval) clearInterval(presenceInterval);
@@ -109,9 +120,20 @@ function listenToOnlineUsers() {
             const userData = docSnap.data();
             if (!userData.lastSeen || (now - userData.lastSeen) > 15000) return;
             count++;
+            
             const userEl = document.createElement('div');
             userEl.className = 'user-item';
-            userEl.innerHTML = `<div class="user-item-avatar"><img src="../favicon.ico" class="avatar-favicon"></div><div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>`;
+            userEl.innerHTML = `
+                <div class="user-item-avatar">
+                    <img src="${userData.avatar || '../favicon.ico'}" alt="pfp">
+                </div>
+                <div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>
+            `;
+            
+            userEl.addEventListener('click', () => {
+                window.location.href = '../account/index.html';
+            });
+            
             usersList.appendChild(userEl);
         });
         onlineCount.textContent = count;
@@ -137,6 +159,7 @@ async function purgeExpiredMessages(channelName) {
 function switchChannel(channelName) {
     currentChannel = channelName;
     currentChannelTitle.textContent = currentChannel;
+    welcomeChannelName.textContent = currentChannel;
     messageInput.placeholder = `Message #${channelName}`;
     channelElements.forEach(el => {
         el.classList.toggle('active', el.getAttribute('data-channel') === currentChannel);
@@ -147,8 +170,12 @@ function switchChannel(channelName) {
 }
 
 function formatTime(timestamp) {
-    if (!timestamp) return "Just now";
-    return timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!timestamp) return "Today at " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const date = timestamp.toDate();
+    const today = new Date();
+    const isToday = date.getDate() === today.getDate() && date.getMonth() === today.getMonth();
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return isToday ? `Today at ${timeStr}` : `${date.toLocaleDateString()} ${timeStr}`;
 }
 
 function listenToMessages() {
@@ -167,32 +194,31 @@ function listenToMessages() {
 function appendMessage(msgId, data) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message';
-    msgDiv.style.position = 'relative';
 
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.innerHTML = `<img src="../favicon.ico" class="avatar-favicon">`;
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'message-avatar-container';
+    avatarDiv.innerHTML = `<img src="${data.avatar || '../favicon.ico'}" class="message-avatar">`;
 
     const content = document.createElement('div');
     content.className = 'message-content';
 
     if (data.replyTo) {
-        const replyTag = document.createElement('div');
-        replyTag.style.cssText = 'font-size:11px;color:var(--text-secondary);margin-bottom:2px;display:flex;align-items:center;gap:4px;';
-        replyTag.innerHTML = `↪️ Replying to <b>${chatUtils.escapeHtml(data.replyTo.author)}</b>`;
-        content.appendChild(replyTag);
-    }
-
-    if (data.forwardedFrom) {
-        const fwdTag = document.createElement('div');
-        fwdTag.style.cssText = 'font-size:11px;color:var(--text-secondary);margin-bottom:2px;display:flex;align-items:center;gap:4px;';
-        fwdTag.innerHTML = `➡️ Forwarded from #${chatUtils.escapeHtml(data.forwardedFrom)}`;
-        content.appendChild(fwdTag);
+        const replyContext = document.createElement('div');
+        replyContext.className = 'reply-context';
+        replyContext.innerHTML = `
+            <img src="${data.replyTo.avatar || '../favicon.ico'}" style="width:16px;height:16px;border-radius:50%;" alt="">
+            <span class="reply-author">@${chatUtils.escapeHtml(data.replyTo.author)}</span>
+            <span class="reply-text-preview">${chatUtils.escapeHtml(data.replyTo.text)}</span>
+        `;
+        content.appendChild(replyContext);
     }
 
     const header = document.createElement('div');
     header.className = 'message-header';
-    header.innerHTML = `<span class="message-author">${chatUtils.escapeHtml(data.user || 'Anonymous')}</span><span class="message-timestamp">${formatTime(data.createdAt)}</span>`;
+    header.innerHTML = `
+        <span class="message-author">${chatUtils.escapeHtml(data.user || 'Anonymous')}</span>
+        <span class="message-timestamp">${formatTime(data.createdAt)}</span>
+    `;
     
     const text = document.createElement('div');
     text.className = 'message-text';
@@ -203,7 +229,7 @@ function appendMessage(msgId, data) {
     content.appendChild(chatUtils.renderReactions(msgId, data));
 
     chatUtils.attachMessageContextMenu(msgDiv, msgId, data);
-    msgDiv.appendChild(avatar);
+    msgDiv.appendChild(avatarDiv);
     msgDiv.appendChild(content);
 
     messagesList.appendChild(msgDiv);
@@ -221,8 +247,9 @@ function sendMessage() {
     const msgData = {
         text,
         user: currentUser,
+        avatar: currentAvatar,
         createdAt: serverTimestamp(),
-        ...(replyPayload ? { replyTo: { id: replyPayload.id, author: replyPayload.author, text: replyPayload.text } } : {})
+        ...(replyPayload ? { replyTo: { id: replyPayload.id, author: replyPayload.author, text: replyPayload.text, avatar: replyPayload.avatar } } : {})
     };
 
     messageInput.value = '';
@@ -239,4 +266,8 @@ messageInput.addEventListener('keydown', (e) => {
         e.preventDefault();
         sendMessage();
     }
+});
+
+document.getElementById('nav-friends').addEventListener('click', () => {
+    window.location.href = '../friends/index.html';
 });
