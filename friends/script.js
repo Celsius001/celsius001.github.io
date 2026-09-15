@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -13,7 +12,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
 let currentUser = "";
 let currentAvatar = "../favicon.ico";
@@ -63,31 +61,16 @@ document.getElementById('nav-chat').addEventListener('click', () => {
     window.location.href = '../chat/index.html';
 });
 
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userDocRef).catch(() => null);
-        
-        if (userSnap && userSnap.exists()) {
-            const data = userSnap.data();
-            if (data.username) currentUser = data.username;
-            if (data.avatar) currentAvatar = data.avatar;
-        }
+function initUser() {
+    currentUser = localStorage.getItem('celsius_username') || "User_" + Math.floor(1000 + Math.random() * 9000);
+    currentAvatar = localStorage.getItem('celsius_avatar') || "../favicon.ico";
+    
+    currentUsernameDisplay.textContent = currentUser;
+    currentUserAvatarDisplay.src = currentAvatar;
 
-        if (!currentUser) currentUser = user.displayName || localStorage.getItem('celsius_username') || "User_" + Math.floor(1000 + Math.random() * 9000);
-        if (currentAvatar === "../favicon.ico" && localStorage.getItem('celsius_avatar')) {
-            currentAvatar = localStorage.getItem('celsius_avatar');
-        }
-        
-        currentUsernameDisplay.textContent = currentUser;
-        currentUserAvatarDisplay.src = currentAvatar;
-
-        registerUserPresence();
-        listenToOnlineUsers();
-    } else {
-        signInAnonymously(auth).catch(() => {});
-    }
-});
+    registerUserPresence();
+    listenToOnlineUsers();
+}
 
 function registerUserPresence() {
     const userRef = doc(db, 'online_users', currentUser);
@@ -142,7 +125,7 @@ function listenToOnlineUsers() {
             `;
             
             card.addEventListener('click', () => {
-                window.location.href = '../account/index.html';
+                window.location.href = '../accounts/index.html';
             });
 
             const actionBtns = card.querySelectorAll('.card-action-btn');
@@ -161,3 +144,5 @@ function listenToOnlineUsers() {
 function escapeHtml(str) {
     return (str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
+
+initUser();
