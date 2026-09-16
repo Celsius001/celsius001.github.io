@@ -106,33 +106,53 @@ function listenToOnlineUsers() {
     const usersQuery = query(collection(db, 'online_users'), orderBy('lastSeen', 'desc'));
     if (unsubscribeUsers) unsubscribeUsers();
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        const fragment = document.createDocumentFragment();
-        let count = 0;
         const now = Date.now();
+        const activeUsers = [];
         snapshot.forEach((docSnap) => {
             const userData = docSnap.data();
             if (!userData.lastSeen || (now - userData.lastSeen) > 15000) return;
-            count++;
-            
-            const userEl = document.createElement('div');
-            userEl.className = 'user-item';
+            activeUsers.push({ id: docSnap.id, ...userData });
+        });
+
+        onlineCount.textContent = activeUsers.length;
+
+        const existingElements = new Map();
+        usersList.querySelectorAll('.user-item').forEach(el => {
+            existingElements.set(el.dataset.uid, el);
+        });
+
+        const fragment = document.createDocumentFragment();
+        activeUsers.forEach((userData) => {
+            let userEl = existingElements.get(userData.id);
             const userPic = (userData.avatar && userData.avatar.length > 10) ? userData.avatar : '../favicon.ico';
-            userEl.innerHTML = `
-                <div class="user-item-avatar">
-                    <img src="${userPic}" alt="pfp">
-                </div>
-                <div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>
-            `;
             
-            userEl.addEventListener('click', () => {
-                window.location.href = `../bio/index.html?user=${encodeURIComponent(userData.username)}`;
-            });
+            if (!userEl) {
+                userEl = document.createElement('div');
+                userEl.className = 'user-item';
+                userEl.dataset.uid = userData.id;
+                userEl.innerHTML = `
+                    <div class="user-item-avatar">
+                        <img src="${userPic}" alt="pfp">
+                    </div>
+                    <div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>
+                `;
+            } else {
+                existingElements.delete(userData.id);
+                const img = userEl.querySelector('img');
+                if (img && img.src !== userPic) {
+                    img.src = userPic;
+                }
+                const nameDiv = userEl.querySelector('.user-item-name');
+                if (nameDiv && nameDiv.textContent !== userData.username) {
+                    nameDiv.textContent = chatUtils.escapeHtml(userData.username);
+                }
+            }
             
             fragment.appendChild(userEl);
         });
+
         usersList.innerHTML = '';
         usersList.appendChild(fragment);
-        onlineCount.textContent = count;
     }, () => {});
 }
 
@@ -278,10 +298,6 @@ messageInput.addEventListener('keydown', (e) => {
         e.preventDefault();
         sendMessage();
     }
-});
-
-document.getElementById('nav-friends').addEventListener('click', () => {
-    window.location.href = '../friends/index.html';
 });
 
 onAuthStateChanged(auth, (user) => {
