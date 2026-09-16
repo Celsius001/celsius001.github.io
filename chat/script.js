@@ -110,22 +110,28 @@ function listenToOnlineUsers() {
         const activeUsers = [];
         snapshot.forEach((docSnap) => {
             const userData = docSnap.data();
-            if (!userData.lastSeen || (now - userData.lastSeen) > 15000) return;
+            if (!userData.lastSeen || (now - userData.lastSeen) > 20000) return;
             activeUsers.push({ id: docSnap.id, ...userData });
         });
 
         onlineCount.textContent = activeUsers.length;
 
-        const existingElements = new Map();
+        const existingMap = new Map();
         usersList.querySelectorAll('.user-item').forEach(el => {
-            existingElements.set(el.dataset.uid, el);
+            existingMap.set(el.dataset.uid, el);
         });
 
-        const fragment = document.createDocumentFragment();
+        const currentIds = new Set(activeUsers.map(u => u.id));
+        existingMap.forEach((el, uid) => {
+            if (!currentIds.has(uid)) {
+                el.remove();
+            }
+        });
+
         activeUsers.forEach((userData) => {
-            let userEl = existingElements.get(userData.id);
             const userPic = (userData.avatar && userData.avatar.length > 10) ? userData.avatar : '../favicon.ico';
-            
+            let userEl = existingMap.get(userData.id);
+
             if (!userEl) {
                 userEl = document.createElement('div');
                 userEl.className = 'user-item';
@@ -136,8 +142,8 @@ function listenToOnlineUsers() {
                     </div>
                     <div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>
                 `;
+                usersList.appendChild(userEl);
             } else {
-                existingElements.delete(userData.id);
                 const img = userEl.querySelector('img');
                 if (img && img.src !== userPic) {
                     img.src = userPic;
@@ -147,12 +153,7 @@ function listenToOnlineUsers() {
                     nameDiv.textContent = chatUtils.escapeHtml(userData.username);
                 }
             }
-            
-            fragment.appendChild(userEl);
         });
-
-        usersList.innerHTML = '';
-        usersList.appendChild(fragment);
     }, () => {});
 }
 
