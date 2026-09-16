@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celsius - Virtual Machine</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <script async src="https://ds.mrmnd.com/5479dea0-fdff-420a-a041-9ed17e127546.js"></script>
+</head>
+<body>
+    <div class="vm-app-wrapper">
+        <header class="vm-topbar">
+            <div class="brand-info">
+                <span class="brand-dot"></span>
+                <h2>Celsius-001 VM</h2>
+            </div>
+            <button id="homeBtn" class="action-btn">Home</button>
+        </header>
+
+        <main class="vm-main">
+            <div class="vm-card" id="vm-card">
+                <div class="vm-card-header">
+                    <h3>Cloud Environment</h3>
+                    <span id="session-status" class="status-badge offline">Idle</span>
+                </div>
+
+                <div class="vm-card-body" id="vm-body">
+                    <div class="vm-idle-view" id="idle-view">
+                        <div class="vm-info-box">
+                            <p>Launch an isolated virtual environment instance.</p>
+                            <div class="vm-specs">
+                                <span>Duration: <strong>25 Minutes</strong></span>
+                                <span>Capacity: <strong id="capacity-count">0</strong> / 2 Active</span>
+                            </div>
+                        </div>
+                        <button id="launchBtn" class="primary-btn">Launch VM</button>
+                    </div>
+
+                    <div class="vm-active-view" id="active-view" style="display: none;">
+                        <div class="vm-screen-container">
+                            <div id="vm-display" class="vm-screen-placeholder">
+                                <div class="spinner"></div>
+                                <p>Connecting to remote host...</p>
+                            </div>
+                        </div>
+                        <div class="vm-controls">
+                            <div class="timer-display">
+                                <span>Time Remaining:</span>
+                                <strong id="countdown-timer">25:00</strong>
+                            </div>
+                            <button id="terminateBtn" class="danger-btn">End Session</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="script.js" type="module"></script>
+</body>
+</html>
