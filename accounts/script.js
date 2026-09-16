@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, updatePassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, query, where, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDj46RSodJ56rWwsxp9wh2x44hcZtBImxw",
@@ -15,42 +15,13 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-function applyCelsiusTheme() {
-    const root = document.documentElement;
-    const savedTheme = localStorage.getItem('celsius_theme');
-    if (savedTheme) {
-        try {
-            const theme = JSON.parse(savedTheme);
-            root.style.setProperty('--bg-main', theme.bg);
-            root.style.setProperty('--text-primary', theme.text);
-            root.style.setProperty('--accent-color', theme.accent);
-            root.style.setProperty('--bg-panel', theme.panel);
-            root.style.setProperty('--bg-sidebar', theme.sidebar);
-            document.body.style.backgroundColor = theme.bg;
-            document.body.style.color = theme.text;
-        } catch (e) {}
-    }
-}
-
-applyCelsiusTheme();
-
-window.addEventListener('storage', (e) => {
-    if (e.key === 'celsius_theme') {
-        applyCelsiusTheme();
-    }
-});
-
-window.addEventListener('message', (event) => {
-    if (event.data && event.data.action === 'updateTheme') {
-        applyCelsiusTheme();
-    }
-});
-
 const avatarContainer = document.getElementById('avatarContainer');
 const avatarInput = document.getElementById('avatarInput');
 const profileAvatar = document.getElementById('profileAvatar');
 const userEmailInput = document.getElementById('userEmail');
 const usernameInput = document.getElementById('usernameInput');
+const bioInput = document.getElementById('bioInput');
+const bioBgInput = document.getElementById('bioBgInput');
 const profileForm = document.getElementById('profileForm');
 const passwordForm = document.getElementById('passwordForm');
 const newPasswordInput = document.getElementById('newPassword');
@@ -73,48 +44,19 @@ function calculateDocSeconds(data) {
     if (typeof data.durationSeconds === 'number') return data.durationSeconds;
     if (typeof data.seconds === 'number') return data.seconds;
     if (typeof data.timeSpent === 'number') return data.timeSpent;
-    if (data.startTime && data.endTime) {
-        const start = typeof data.startTime.toMillis === 'function' ? data.startTime.toMillis() : new Date(data.startTime).getTime();
-        const end = typeof data.endTime.toMillis === 'function' ? data.endTime.toMillis() : new Date(data.endTime).getTime();
-        if (!isNaN(start) && !isNaN(end) && end >= start) {
-            return Math.floor((end - start) / 1000);
-        }
-    }
     return Number(data.duration || 0);
 }
 
 function listenToGamesFolder(uid, username) {
     if (gamesUnsubscribe) gamesUnsubscribe();
-    
     const qById = query(collection(db, 'games'), where('userId', '==', uid));
     gamesUnsubscribe = onSnapshot(qById, async (snapshot) => {
         let totalSecs = 0;
         snapshot.forEach((docSnap) => {
             totalSecs += calculateDocSeconds(docSnap.data());
         });
-        if (totalSecs === 0 && username) {
-            const qByName = query(collection(db, 'games'), where('user', '==', username));
-            const nameSnap = await getDocs(qByName);
-            nameSnap.forEach((docSnap) => {
-                totalSecs += calculateDocSeconds(docSnap.data());
-            });
-        }
-        localStorage.setItem('celsius_game_seconds', totalSecs.toString());
         renderGameTime(totalSecs);
-    }, async () => {
-        try {
-            const qUser = query(collection(db, 'games'), where('user', '==', username));
-            const snap = await getDocs(qUser);
-            let totalSecs = 0;
-            snap.forEach((docSnap) => {
-                totalSecs += calculateDocSeconds(docSnap.data());
-            });
-            renderGameTime(totalSecs);
-        } catch (e) {
-            const fallback = parseInt(localStorage.getItem('celsius_game_seconds') || '0', 10);
-            renderGameTime(fallback);
-        }
-    });
+    }, () => {});
 }
 
 async function loadUserMetricsAndProfile(user) {
@@ -127,8 +69,8 @@ async function loadUserMetricsAndProfile(user) {
     if (userSnap && userSnap.exists()) {
         const data = userSnap.data();
         if (data.avatar) profileAvatar.src = data.avatar;
-    } else if (localStorage.getItem('celsius_avatar')) {
-        profileAvatar.src = localStorage.getItem('celsius_avatar');
+        if (data.bio) bioInput.value = data.bio;
+        if (data.bioBg) bioBgInput.value = data.bioBg;
     }
 
     try {
@@ -141,7 +83,7 @@ async function loadUserMetricsAndProfile(user) {
         }
         statMessages.textContent = totalCount;
     } catch (e) {
-        statMessages.textContent = localStorage.getItem('celsius_messages_count') || '0';
+        statMessages.textContent = '0';
     }
 
     listenToGamesFolder(user.uid, currentUsername);
@@ -176,11 +118,19 @@ avatarInput.addEventListener('change', (e) => {
 profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const newName = usernameInput.value.trim();
+    const newBio = bioInput.value.trim();
+    const newBioBg = bioBgInput.value;
     if (!newName) return;
+
     localStorage.setItem('celsius_username', newName);
     currentUsername = newName;
+
     if (auth.currentUser) {
-        await setDoc(doc(db, 'users', auth.currentUser.uid), { username: newName }, { merge: true }).catch(() => {});
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { 
+            username: newName, 
+            bio: newBio, 
+            bioBg: newBioBg 
+        }, { merge: true }).catch(() => {});
     }
     alert('Profile updated successfully!');
 });
@@ -207,15 +157,12 @@ deleteAccountBtn.addEventListener('click', async () => {
             await deleteUser(auth.currentUser);
             window.location.href = '../index.html';
         } catch (err) {
-            alert('Re-authentication required or error deleting account: ' + err.message);
+            alert('Error deleting account: ' + err.message);
         }
     }
 });
 
-backHomeBtn.addEventListener('click', () => {
-    window.location.href = '../index.html';
-});
-
+backHomeBtn.addEventListener('click', () => { window.location.href = '../index.html'; });
 logoutBtn.addEventListener('click', async () => {
     if (gamesUnsubscribe) gamesUnsubscribe();
     await signOut(auth);
