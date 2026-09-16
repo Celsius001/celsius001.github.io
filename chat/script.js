@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { ChatUtilities } from "./chat-utilities.js";
 
 const firebaseConfig = {
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 let currentUser = "";
 let currentAvatar = "../favicon.ico";
@@ -65,19 +67,19 @@ window.addEventListener('message', (event) => {
     }
 });
 
-function initUser() {
-    currentUser = localStorage.getItem('celsius_username') || "User_" + Math.floor(1000 + Math.random() * 9000);
+function initUser(user) {
+    currentUser = user.displayName || localStorage.getItem('celsius_username') || user.email?.split('@')[0] || "User";
     currentAvatar = localStorage.getItem('celsius_avatar') || "../favicon.ico";
 
     currentUsernameDisplay.textContent = currentUser;
     currentUserAvatarDisplay.src = currentAvatar;
 
-    registerUserPresence();
+    registerUserPresence(user.uid);
     switchChannel('general');
 }
 
-function registerUserPresence() {
-    const userRef = doc(db, 'online_users', currentUser);
+function registerUserPresence(uid) {
+    const userRef = doc(db, 'online_users', uid);
     const sendHeartbeat = () => {
         setDoc(userRef, { 
             username: currentUser, 
@@ -255,4 +257,10 @@ document.getElementById('nav-friends').addEventListener('click', () => {
     window.location.href = '../friends/index.html';
 });
 
-initUser();
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        initUser(user);
+    } else {
+        window.location.href = '../index.html';
+    }
+});
