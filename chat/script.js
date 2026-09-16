@@ -73,9 +73,16 @@ async function initUser(user) {
 
     try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists() && userDoc.data().avatar) {
-            currentAvatar = userDoc.data().avatar;
-            localStorage.setItem('celsius_avatar', currentAvatar);
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.username) {
+                currentUser = data.username;
+                localStorage.setItem('celsius_username', currentUser);
+            }
+            if (data.avatar) {
+                currentAvatar = data.avatar;
+                localStorage.setItem('celsius_avatar', currentAvatar);
+            }
         }
     } catch(err) {}
 
@@ -110,7 +117,7 @@ function listenToOnlineUsers() {
         const activeUsers = [];
         snapshot.forEach((docSnap) => {
             const userData = docSnap.data();
-            if (!userData.lastSeen || (now - userData.lastSeen) > 20000) return;
+            if (!userData.lastSeen || (now - userData.lastSeen) > 60000) return;
             activeUsers.push({ id: docSnap.id, ...userData });
         });
 
