@@ -38,6 +38,13 @@ function renderGameTime(totalSeconds) {
     statGameTime.textContent = `${hours}h ${minutes}m`;
 }
 
+function getLocalGameTime() {
+    const storedSeconds = Number(localStorage.getItem('celsius_game_time_seconds') || 0);
+    const activeGame = JSON.parse(localStorage.getItem('celsius_active_game') || 'null');
+    if (!activeGame || !activeGame.startedAt) return storedSeconds;
+    return storedSeconds + Math.max(0, Math.floor((Date.now() - activeGame.startedAt) / 1000));
+}
+
 function calculateDocSeconds(data) {
     if (typeof data.durationSeconds === 'number') return data.durationSeconds;
     if (typeof data.seconds === 'number') return data.seconds;
@@ -53,7 +60,7 @@ function listenToGamesFolder(uid, username) {
         snapshot.forEach((docSnap) => {
             totalSecs += calculateDocSeconds(docSnap.data());
         });
-        renderGameTime(totalSecs);
+        renderGameTime(totalSecs + getLocalGameTime());
     }, () => {});
 }
 
@@ -82,6 +89,7 @@ async function loadUserMetricsAndProfile(user) {
         statMessages.textContent = '0';
     }
 
+    renderGameTime(getLocalGameTime());
     listenToGamesFolder(user.uid, currentUsername);
 }
 

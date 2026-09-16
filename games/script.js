@@ -18,6 +18,22 @@ let currentGames = [];
 let activeLibrary = 'seraph';
 let activeCategory = 'all';
 let favorites = JSON.parse(localStorage.getItem('celsius_favorites') || '[]');
+const gameTimeKey = 'celsius_game_time_seconds';
+const activeGameKey = 'celsius_active_game';
+
+function finishActiveGame() {
+    const activeGame = JSON.parse(localStorage.getItem(activeGameKey) || 'null');
+    if (!activeGame || !activeGame.startedAt) return;
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - activeGame.startedAt) / 1000));
+    const totalSeconds = Number(localStorage.getItem(gameTimeKey) || 0) + elapsedSeconds;
+    localStorage.setItem(gameTimeKey, String(totalSeconds));
+    localStorage.removeItem(activeGameKey);
+}
+
+function startGameSession(title) {
+    finishActiveGame();
+    localStorage.setItem(activeGameKey, JSON.stringify({ title, startedAt: Date.now() }));
+}
 
 function applyCelsiusTheme() {
     const root = document.documentElement;
@@ -84,6 +100,7 @@ async function openGame(gameUrl) {
         `$&\n<base href="${baseUrl}">`
     );
 
+    finishActiveGame();
     document.open();
     document.write(gameDocument);
     document.close();
@@ -176,6 +193,7 @@ function renderGames(games) {
 
         card.addEventListener('click', () => {
             if (game.url) {
+                startGameSession(title);
                 openGame(game.url).catch(() => {
                     window.location.href = getGameUrl(game.url);
                 });
@@ -220,3 +238,4 @@ window.addEventListener('message', (event) => {
 });
 
 loadLibrary('seraph');
+window.addEventListener('pagehide', finishActiveGame);
