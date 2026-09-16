@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { ChatUtilities } from "./chat-utilities.js";
 
@@ -67,9 +67,17 @@ window.addEventListener('message', (event) => {
     }
 });
 
-function initUser(user) {
+async function initUser(user) {
     currentUser = user.displayName || localStorage.getItem('celsius_username') || user.email?.split('@')[0] || "User";
     currentAvatar = localStorage.getItem('celsius_avatar') || "../favicon.ico";
+
+    try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists() && userDoc.data().avatar) {
+            currentAvatar = userDoc.data().avatar;
+            localStorage.setItem('celsius_avatar', currentAvatar);
+        }
+    } catch(err) {}
 
     currentUsernameDisplay.textContent = currentUser;
     currentUserAvatarDisplay.src = currentAvatar;
@@ -85,9 +93,7 @@ function registerUserPresence(uid) {
             username: currentUser, 
             avatar: currentAvatar,
             lastSeen: Date.now() 
-        }, { merge: true }).catch((err) => {
-            console.error("Presence error:", err.message);
-        });
+        }, { merge: true }).catch(() => {});
     };
     sendHeartbeat();
     if (presenceInterval) clearInterval(presenceInterval);
@@ -100,7 +106,7 @@ function listenToOnlineUsers() {
     const usersQuery = query(collection(db, 'online_users'), orderBy('lastSeen', 'desc'));
     if (unsubscribeUsers) unsubscribeUsers();
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        usersList.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         let count = 0;
         const now = Date.now();
         snapshot.forEach((docSnap) => {
@@ -110,23 +116,24 @@ function listenToOnlineUsers() {
             
             const userEl = document.createElement('div');
             userEl.className = 'user-item';
+            const userPic = (userData.avatar && userData.avatar.length > 10) ? userData.avatar : '../favicon.ico';
             userEl.innerHTML = `
                 <div class="user-item-avatar">
-                    <img src="${userData.avatar || '../favicon.ico'}" alt="pfp">
+                    <img src="${userPic}" alt="pfp">
                 </div>
                 <div class="user-item-name">${chatUtils.escapeHtml(userData.username)}</div>
             `;
             
             userEl.addEventListener('click', () => {
-                window.location.href = '../accounts/index.html';
+                window.location.href = `../bio/index.html?user=${encodeURIComponent(userData.username)}`;
             });
             
-            usersList.appendChild(userEl);
+            fragment.appendChild(userEl);
         });
+        usersList.innerHTML = '';
+        usersList.appendChild(fragment);
         onlineCount.textContent = count;
-    }, (err) => {
-        console.error("Error loading users:", err.message);
-    });
+    }, () => {});
 }
 
 async function purgeExpiredMessages(channelName) {
@@ -179,9 +186,7 @@ function listenToMessages() {
             appendMessage(docSnap.id, docSnap.data());
         });
         scrollToBottom();
-    }, (err) => {
-        console.error("Error loading messages:", err.message);
-    });
+    }, () => {});
 }
 
 function appendMessage(msgId, data) {
@@ -190,7 +195,8 @@ function appendMessage(msgId, data) {
 
     const avatarDiv = document.createElement('div');
     avatarDiv.className = 'message-avatar-container';
-    avatarDiv.innerHTML = `<img src="${data.avatar || '../favicon.ico'}" class="message-avatar">`;
+    const msgPic = (data.avatar && data.avatar.length > 10) ? data.avatar : '../favicon.ico';
+    avatarDiv.innerHTML = `<img src="${msgPic}" class="message-avatar">`;
 
     const content = document.createElement('div');
     content.className = 'message-content';
@@ -260,9 +266,7 @@ function sendMessage() {
         chatUtils.clearReply();
     }
     
-    addDoc(collection(db, `messages_${currentChannel}`), msgData).catch((err) => {
-        alert("Failed to send message: " + err.message);
-    });
+    addDoc(collection(db, `messages_${currentChannel}`), msgData).catch(() => {});
 }
 
 channelElements.forEach(el => {
