@@ -93,9 +93,10 @@ function listenToOnlineUsers() {
     const usersQuery = query(collection(db, 'online_users'), orderBy('lastSeen', 'desc'));
     if (unsubscribeUsers) unsubscribeUsers();
     unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        onlineUsersGrid.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         let count = 0;
         const now = Date.now();
+        
         snapshot.forEach((docSnap) => {
             const userData = docSnap.data();
             if (!userData.lastSeen || (now - userData.lastSeen) > 15000) return;
@@ -107,10 +108,10 @@ function listenToOnlineUsers() {
             card.innerHTML = `
                 <div class="user-card-banner"></div>
                 <div class="user-card-actions">
-                    <button class="card-action-btn">
+                    <button class="card-action-btn action-dm">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                     </button>
-                    <button class="card-action-btn">
+                    <button class="card-action-btn action-add">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                     </button>
                 </div>
@@ -127,20 +128,49 @@ function listenToOnlineUsers() {
             `;
             
             card.addEventListener('click', () => {
-                window.location.href = '../accounts/index.html';
+                window.location.href = `bios.html?user=${encodeURIComponent(userData.username)}`;
             });
 
-            const actionBtns = card.querySelectorAll('.card-action-btn');
-            actionBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                });
+            const dmBtn = card.querySelector('.action-dm');
+            dmBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                startDM(userData.username);
             });
 
-            onlineUsersGrid.appendChild(card);
+            const addBtn = card.querySelector('.action-add');
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addFriend(userData.username, userData.avatar);
+            });
+
+            fragment.appendChild(card);
         });
+        
+        onlineUsersGrid.innerHTML = '';
+        onlineUsersGrid.appendChild(fragment);
         onlineCount.textContent = count;
     }, () => {});
+}
+
+function addFriend(targetUsername, targetAvatar) {
+    if (!targetUsername) return;
+    const friendRef = doc(db, `friends_${currentUser}`, targetUsername);
+    setDoc(friendRef, {
+        username: targetUsername,
+        avatar: targetAvatar || '../favicon.ico',
+        status: 'pending',
+        timestamp: Date.now()
+    }).then(() => {
+        alert(`Friend request sent to ${targetUsername}`);
+    }).catch((err) => {
+        alert(`Failed to send request: ${err.message}`);
+    });
+}
+
+function startDM(targetUsername) {
+    if (!targetUsername) return;
+    const dmId = [currentUser, targetUsername].sort().join('_');
+    window.location.href = `dm.html?chat=${dmId}&with=${encodeURIComponent(targetUsername)}`;
 }
 
 function escapeHtml(str) {
