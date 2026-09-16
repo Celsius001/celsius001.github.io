@@ -3,89 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>celsius | chat</title>
-    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <title>Celsius - Chat</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
 </head>
 <body>
-<div id="app-container">
-    <aside class="sidebar-left">
-        <div class="brand-header">
-            <h1 class="brand-name">celsius</h1>
-            <svg class="brand-dropdown" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </div>
-        
-        <div class="sidebar-scroll">
-            <div class="nav-item action-item" id="nav-friends">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                <span>Friends</span>
+    <div class="chat-app-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="brand-dot"></span>
+                <h2>Celsius-001</h2>
             </div>
-
-            <div class="category">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-                SOCIAL
-            </div>
-            <div class="channel-list" id="channel-list">
-                <div class="channel-item active" data-channel="general">
-                    <span class="hash">#</span> <span class="channel-name">general</span>
-                </div>
-                <div class="channel-item" data-channel="music">
-                    <span class="hash">#</span> <span class="channel-name">music</span>
-                </div>
-                <div class="channel-item" data-channel="gaming">
-                    <span class="hash">#</span> <span class="channel-name">gaming</span>
-                </div>
-                <div class="channel-item" data-channel="lounge">
-                    <span class="hash">#</span> <span class="channel-name">lounge</span>
+            <div class="channels-section">
+                <span class="section-title">Channels</span>
+                <div class="channel-list">
+                    <div class="channel-item active" data-channel="general"># general</div>
+                    <div class="channel-item" data-channel="music"># music</div>
+                    <div class="channel-item" data-channel="gaming"># gaming</div>
+                    <div class="channel-item" data-channel="lounge"># lounge</div>
                 </div>
             </div>
-        </div>
+            <div class="user-profile-bar">
+                <img id="current-user-avatar" src="../favicon.ico" alt="Avatar" class="user-avatar">
+                <span id="current-username" class="username">Loading...</span>
+            </div>
+        </aside>
 
-        <div class="user-profile-section">
-            <div class="user-avatar-wrapper">
-                <img src="../favicon.ico" class="avatar-img" id="current-user-avatar" alt="user">
-                <div class="status-indicator online"></div>
-            </div>
-            <div class="user-info">
-                <div class="username-display" id="current-username">Connecting...</div>
-                <div class="user-status-text">Online</div>
-            </div>
-        </div>
-    </aside>
+        <main class="chat-main">
+            <header class="chat-header">
+                <div class="channel-info">
+                    <span class="hash">#</span>
+                    <h3 id="current-channel-title">general</h3>
+                </div>
+                <div class="header-actions">
+                    <button id="homeBtn" class="action-btn" onclick="window.location.href='../index.html'">Home</button>
+                </div>
+            </header>
 
-    <main class="chat-area">
-        <div class="chat-header">
-            <div class="chat-header-info">
-                <span class="header-hash">#</span>
-                <h2 id="current-channel-title">general</h2>
+            <div class="chat-content-area" id="messages-container">
+                <div class="welcome-message">
+                    <h2>Welcome to #<span id="welcome-channel-name">general</span>!</h2>
+                    <p>This is the start of the channel.</p>
+                </div>
+                <div id="messages-list"></div>
             </div>
-        </div>
-        
-        <div class="messages-container" id="messages-container">
-            <div class="channel-welcome">
-                <h1>Welcome to #<span id="welcome-channel-name">general</span>!</h1>
-                <p>Messages in this channel auto-purge every 24 hours.</p>
-            </div>
-            <div class="messages-list" id="messages-list"></div>
-        </div>
-        
-        <div class="input-area" id="input-area">
-            <div class="input-wrapper">
-                <button class="attach-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-                <input type="text" id="message-input" placeholder="Message #general" autocomplete="off">
-            </div>
-        </div>
-    </main>
 
-    <aside class="sidebar-right">
-        <div class="users-section-title">ONLINE — <span id="online-count">0</span></div>
-        <div class="users-list" id="users-list">
-        </div>
-    </aside>
-</div>
-<script type="module" src="script.js"></script>
+            <div class="chat-input-area" id="input-area">
+                <div class="input-wrapper">
+                    <input type="text" id="message-input" placeholder="Message #general" autocomplete="off">
+                </div>
+            </div>
+        </main>
+
+        <aside class="right-sidebar">
+            <div class="sidebar-header">
+                <h3>Online — <span id="online-count">0</span></h3>
+            </div>
+            <div id="users-list" class="users-list"></div>
+        </aside>
+    </div>
+    <script src="script.js" type="module"></script>
 </body>
 </html>
