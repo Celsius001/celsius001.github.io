@@ -324,3 +324,24 @@ body, html {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+@media (max-width: 760px) {
+    .sidebar {
+        width: 180px;
+        min-width: 180px;
+    }
+
+    .right-sidebar {
+        display: none;
+    }
+
+    .chat-header,
+    .chat-input-area {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .chat-content-area {
+        padding: 14px 12px;
+    }
+}

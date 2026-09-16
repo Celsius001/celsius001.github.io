@@ -6,6 +6,8 @@ const homeView = document.getElementById('homeView');
 const urlInput = document.getElementById('urlInput');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const reloadBtn = document.getElementById('reloadBtn');
+const appFrames = new Map();
+let activeFrame = appFrame;
 
 function applyCelsiusSettings() {
     const root = document.documentElement;
@@ -36,9 +38,9 @@ window.addEventListener('message', (event) => {
     if (event.data) {
         if (event.data.action === 'updateSettings') {
             applyCelsiusSettings();
-            if (appFrame && appFrame.contentWindow) {
+            if (activeFrame && activeFrame.contentWindow) {
                 try {
-                    appFrame.contentWindow.postMessage({ action: 'updateTheme', theme: JSON.parse(localStorage.getItem('celsius_theme')) }, '*');
+                    activeFrame.contentWindow.postMessage({ action: 'updateTheme', theme: JSON.parse(localStorage.getItem('celsius_theme')) }, '*');
                 } catch (e) {}
             }
         } else if (event.data.action === 'closeSettings') {
@@ -137,23 +139,46 @@ function updateContent(appUrl) {
     });
 
     if (appUrl === 'celsius://home') {
-        appFrame.style.display = 'none';
+        document.querySelectorAll('.app-frame').forEach(frame => { frame.style.display = 'none'; });
         homeView.style.display = 'flex';
-        appFrame.src = 'about:blank';
     } else if (appUrl.startsWith('celsius://')) {
         homeView.style.display = 'none';
-        appFrame.style.display = 'block';
         let folderName = appUrl.replace('celsius://', '');
         if (folderName === 'ai') folderName = 'clanker';
-        appFrame.src = '../' + folderName + '/index.html';
+        let frame = appFrames.get(appUrl);
+        if (!frame) {
+            frame = appFrames.size === 0 ? appFrame : appFrame.cloneNode(false);
+            frame.removeAttribute('id');
+            frame.dataset.appUrl = appUrl;
+            if (frame !== appFrame) document.querySelector('.page-content').appendChild(frame);
+            appFrames.set(appUrl, frame);
+            frame.src = '../' + folderName + '/index.html';
+        }
+        document.querySelectorAll('.app-frame').forEach(item => { item.style.display = item === frame ? 'block' : 'none'; });
+        activeFrame = frame;
     } else {
         homeView.style.display = 'none';
-        appFrame.style.display = 'block';
+        let frame = appFrames.get(appUrl);
+        let isNewFrame = false;
+        if (!frame) {
+            isNewFrame = true;
+            frame = appFrames.size === 0 ? appFrame : appFrame.cloneNode(false);
+            frame.removeAttribute('id');
+            frame.dataset.appUrl = appUrl;
+            if (frame !== appFrame) document.querySelector('.page-content').appendChild(frame);
+            appFrames.set(appUrl, frame);
+        }
+        document.querySelectorAll('.app-frame').forEach(item => { item.style.display = item === frame ? 'block' : 'none'; });
+        activeFrame = frame;
         if (window.scramjetReady && window.scramjetCtrl) {
-            if (!window.scramjetFrame) window.scramjetFrame = window.scramjetCtrl.createFrame(appFrame);
-            window.scramjetFrame.go(appUrl);
-        } else {
-            appFrame.src = appUrl;
+            if (isNewFrame || window.scramjetFrameTarget !== frame) {
+                window.scramjetFrame = window.scramjetCtrl.createFrame(frame);
+                window.scramjetFrameTarget = frame;
+                window.scramjetFrame.go(appUrl);
+            }
+        } else if (!frame.dataset.loaded) {
+            frame.src = appUrl;
+            frame.dataset.loaded = 'true';
         }
     }
 }
@@ -200,9 +225,11 @@ sidebarLinks.forEach(link => {
 });
 
 reloadBtn.addEventListener('click', () => {
-    if (appFrame.style.display === 'block') {
+    if (activeFrame && activeFrame.style.display === 'block') {
         const activeTab = document.querySelector('.tab.active');
-        if (activeTab) updateContent(activeTab.dataset.url);
+        if (activeTab && activeFrame) {
+            activeFrame.src = activeFrame.src;
+        }
     }
 });
 

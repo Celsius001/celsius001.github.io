@@ -22,6 +22,7 @@ let currentChannel = "general";
 let unsubscribeMessages = null;
 let unsubscribeUsers = null;
 let presenceInterval = null;
+const savedChannel = localStorage.getItem('celsius_chat_channel');
 
 const channelElements = document.querySelectorAll('.channel-item');
 const currentChannelTitle = document.getElementById('current-channel-title');
@@ -90,7 +91,7 @@ async function initUser(user) {
     currentUserAvatarDisplay.src = currentAvatar;
 
     registerUserPresence(user.uid);
-    switchChannel('general');
+    switchChannel(savedChannel || 'general');
 }
 
 function registerUserPresence(uid) {
@@ -181,7 +182,11 @@ async function purgeExpiredMessages(channelName) {
 }
 
 function switchChannel(channelName) {
+    if (!channelElements || !Array.from(channelElements).some(el => el.dataset.channel === channelName)) {
+        channelName = 'general';
+    }
     currentChannel = channelName;
+    localStorage.setItem('celsius_chat_channel', currentChannel);
     currentChannelTitle.textContent = currentChannel;
     welcomeChannelName.textContent = currentChannel;
     messageInput.placeholder = `Message #${channelName}`;
@@ -308,10 +313,24 @@ messageInput.addEventListener('keydown', (e) => {
     }
 });
 
+document.getElementById('homeBtn').addEventListener('click', () => {
+    const homeUrl = new URL('../index.html', window.location.href).href;
+    if (window.top !== window) {
+        window.top.location.href = homeUrl;
+    } else {
+        window.location.href = homeUrl;
+    }
+});
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
         initUser(user);
     } else {
-        window.location.href = '../index.html';
+        const loginUrl = new URL('../index.html', window.location.href).href;
+        if (window.top !== window) {
+            window.top.location.href = loginUrl;
+        } else {
+            window.location.href = loginUrl;
+        }
     }
 });
