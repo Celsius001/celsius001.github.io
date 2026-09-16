@@ -20,8 +20,6 @@ const avatarInput = document.getElementById('avatarInput');
 const profileAvatar = document.getElementById('profileAvatar');
 const userEmailInput = document.getElementById('userEmail');
 const usernameInput = document.getElementById('usernameInput');
-const bioInput = document.getElementById('bioInput');
-const bioBgInput = document.getElementById('bioBgInput');
 const profileForm = document.getElementById('profileForm');
 const passwordForm = document.getElementById('passwordForm');
 const newPasswordInput = document.getElementById('newPassword');
@@ -69,8 +67,6 @@ async function loadUserMetricsAndProfile(user) {
     if (userSnap && userSnap.exists()) {
         const data = userSnap.data();
         if (data.avatar) profileAvatar.src = data.avatar;
-        if (data.bio) bioInput.value = data.bio;
-        if (data.bioBg) bioBgInput.value = data.bioBg;
     }
 
     try {
@@ -118,8 +114,6 @@ avatarInput.addEventListener('change', (e) => {
 profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const newName = usernameInput.value.trim();
-    const newBio = bioInput.value.trim();
-    const newBioBg = bioBgInput.value;
     if (!newName) return;
 
     localStorage.setItem('celsius_username', newName);
@@ -127,9 +121,7 @@ profileForm.addEventListener('submit', async (e) => {
 
     if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), { 
-            username: newName, 
-            bio: newBio, 
-            bioBg: newBioBg 
+            username: newName 
         }, { merge: true }).catch(() => {});
     }
     alert('Profile updated successfully!');
