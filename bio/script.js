@@ -13,24 +13,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-function applyCelsiusTheme() {
-    const root = document.documentElement;
-    const savedTheme = localStorage.getItem('celsius_theme');
-    if (savedTheme) {
-        try {
-            const theme = JSON.parse(savedTheme);
-            document.body.style.backgroundColor = theme.bg;
-            document.body.style.color = theme.text;
-            document.getElementById('bio-card').style.backgroundColor = theme.panel;
-        } catch (e) {}
-    }
-}
-applyCelsiusTheme();
-
-window.addEventListener('storage', (e) => {
-    if (e.key === 'celsius_theme') applyCelsiusTheme();
-});
-
 const urlParams = new URLSearchParams(window.location.search);
 const targetUser = urlParams.get('user');
 
@@ -57,6 +39,21 @@ async function loadBio() {
         if (userData.bio) {
             document.getElementById('bio-text').textContent = userData.bio;
         }
+        if (userData.bioBg) {
+            document.getElementById('bio-card').style.backgroundColor = userData.bioBg;
+        }
+
+        // Calculate Message Count
+        try {
+            const channels = ['general', 'music', 'gaming', 'lounge'];
+            let totalMessages = 0;
+            for (const ch of channels) {
+                const msgQuery = query(collection(db, `messages_${ch}`), where('user', '==', targetUser));
+                const msgSnap = await getDocs(msgQuery);
+                totalMessages += msgSnap.size;
+            }
+            document.getElementById('stat-messages').textContent = totalMessages;
+        } catch(e) {}
     }
 }
 
