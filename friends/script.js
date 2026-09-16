@@ -128,7 +128,7 @@ function listenToOnlineUsers() {
             `;
             
             card.addEventListener('click', () => {
-                window.location.href = `bios.html?user=${encodeURIComponent(userData.username)}`;
+                window.location.href = `../bio/index.html?user=${encodeURIComponent(userData.username)}`;
             });
 
             const dmBtn = card.querySelector('.action-dm');
