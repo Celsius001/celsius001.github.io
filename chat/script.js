@@ -241,10 +241,15 @@ function sendMessage() {
         replyPayload = chatUtils.getReplyPayload();
     }
 
+    let safeAvatar = currentAvatar;
+    if (safeAvatar && safeAvatar.length > 800000) {
+        safeAvatar = "../favicon.ico";
+    }
+
     const msgData = {
         text,
         user: currentUser,
-        avatar: currentAvatar,
+        avatar: safeAvatar,
         createdAt: serverTimestamp(),
         ...(replyPayload ? { replyTo: { id: replyPayload.id, author: replyPayload.author, text: replyPayload.text, avatar: replyPayload.avatar } } : {})
     };
@@ -256,7 +261,7 @@ function sendMessage() {
     }
     
     addDoc(collection(db, `messages_${currentChannel}`), msgData).catch((err) => {
-        alert("Failed to send message: " + err.message + "\n\nDid you update your Firestore Security Rules?");
+        alert("Failed to send message: " + err.message);
     });
 }
 
