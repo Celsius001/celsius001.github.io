@@ -1,10 +1,10 @@
 :root {
-    --bg-main: #0b131a;
-    --bg-sidebar: #070a0e;
-    --bg-panel: #111b24;
-    --text-primary: #e1e8ed;
-    --accent-color: #0088cc;
-    --border-color: rgba(255, 255, 255, 0.08);
+    --bg-main: #000000;
+    --bg-sidebar: #050505;
+    --bg-panel: #121212;
+    --text-primary: #ffffff;
+    --accent-color: #ffffff;
+    --border-color: rgba(255, 255, 255, 0.15);
 }
 
 * {
@@ -36,7 +36,7 @@ body, html {
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--border-color);
-    height: 100%;
+    height: 100vh;
 }
 
 .sidebar-header {
@@ -51,12 +51,13 @@ body, html {
     font-size: 16px;
     font-weight: 600;
     letter-spacing: 0.5px;
+    color: var(--text-primary);
 }
 
 .brand-dot {
     width: 8px;
     height: 8px;
-    background-color: var(--accent-color);
+    background-color: var(--text-primary);
     border-radius: 50%;
 }
 
@@ -96,14 +97,14 @@ body, html {
 }
 
 .channel-item.active {
-    background-color: var(--accent-color);
-    color: #ffffff;
-    font-weight: 500;
+    background-color: var(--text-primary);
+    color: var(--bg-main);
+    font-weight: 600;
 }
 
 .user-profile-bar {
     padding: 12px 16px;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.3);
     border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -129,13 +130,14 @@ body, html {
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: 100vh;
     background-color: var(--bg-main);
     min-width: 0;
 }
 
 .chat-header {
     height: 60px;
+    min-height: 60px;
     padding: 0 20px;
     display: flex;
     align-items: center;
@@ -278,7 +280,7 @@ body, html {
     border-left: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: 100vh;
 }
 
 .right-sidebar .sidebar-header {
