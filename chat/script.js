@@ -85,7 +85,9 @@ function registerUserPresence(uid) {
             username: currentUser, 
             avatar: currentAvatar,
             lastSeen: Date.now() 
-        }, { merge: true }).catch(() => {});
+        }, { merge: true }).catch((err) => {
+            console.error("Presence error:", err.message);
+        });
     };
     sendHeartbeat();
     if (presenceInterval) clearInterval(presenceInterval);
@@ -122,7 +124,9 @@ function listenToOnlineUsers() {
             usersList.appendChild(userEl);
         });
         onlineCount.textContent = count;
-    }, () => {});
+    }, (err) => {
+        console.error("Error loading users:", err.message);
+    });
 }
 
 async function purgeExpiredMessages(channelName) {
@@ -149,7 +153,9 @@ function switchChannel(channelName) {
     channelElements.forEach(el => {
         el.classList.toggle('active', el.getAttribute('data-channel') === currentChannel);
     });
-    chatUtils.clearReply();
+    if (chatUtils && typeof chatUtils.clearReply === 'function') {
+        chatUtils.clearReply();
+    }
     purgeExpiredMessages(channelName);
     listenToMessages();
 }
@@ -173,7 +179,9 @@ function listenToMessages() {
             appendMessage(docSnap.id, docSnap.data());
         });
         scrollToBottom();
-    }, () => {});
+    }, (err) => {
+        console.error("Error loading messages:", err.message);
+    });
 }
 
 function appendMessage(msgId, data) {
@@ -227,7 +235,11 @@ function scrollToBottom() {
 function sendMessage() {
     const text = messageInput.value.trim();
     if (text === "") return;
-    const replyPayload = chatUtils.getReplyPayload();
+    
+    let replyPayload = null;
+    if (chatUtils && typeof chatUtils.getReplyPayload === 'function') {
+        replyPayload = chatUtils.getReplyPayload();
+    }
 
     const msgData = {
         text,
@@ -238,8 +250,14 @@ function sendMessage() {
     };
 
     messageInput.value = '';
-    chatUtils.clearReply();
-    addDoc(collection(db, `messages_${currentChannel}`), msgData).catch(() => {});
+    
+    if (chatUtils && typeof chatUtils.clearReply === 'function') {
+        chatUtils.clearReply();
+    }
+    
+    addDoc(collection(db, `messages_${currentChannel}`), msgData).catch((err) => {
+        alert("Failed to send message: " + err.message + "\n\nDid you update your Firestore Security Rules?");
+    });
 }
 
 channelElements.forEach(el => {
