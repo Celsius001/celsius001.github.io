@@ -79,11 +79,12 @@ body, html {
     align-items: center;
     justify-content: center;
     padding: 24px;
+    position: relative;
 }
 
 .vm-card {
     width: 100%;
-    max-width: 680px;
+    max-width: 520px;
     background-color: var(--bg-panel);
     border: 1px solid var(--border-color);
     border-radius: 16px;
@@ -131,21 +132,14 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 24px;
-}
-
-.vm-idle-view {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
     align-items: center;
     text-align: center;
-    padding: 20px 0;
 }
 
 .vm-info-box {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     color: rgba(255, 255, 255, 0.7);
     font-size: 14px;
 }
@@ -166,7 +160,7 @@ body, html {
     background-color: var(--text-primary);
     color: var(--bg-main);
     border: none;
-    padding: 12px 28px;
+    padding: 12px 32px;
     border-radius: 8px;
     font-weight: 600;
     font-size: 14px;
@@ -178,62 +172,49 @@ body, html {
     opacity: 0.9;
 }
 
-.vm-active-view {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.vm-screen-container {
-    width: 100%;
-    height: 320px;
+.vm-fullscreen-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background-color: #000000;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.vm-screen-placeholder {
+    z-index: 9999;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 13px;
 }
 
-.spinner {
-    width: 24px;
-    height: 24px;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-top-color: var(--text-primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.vm-controls {
+.vm-fullscreen-header {
+    height: 50px;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: rgba(0, 0, 0, 0.2);
-    padding: 14px 20px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
+    padding: 0 20px;
+}
+
+.vm-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #00ff66;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff66;
 }
 
 .timer-display {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 8px;
+    font-size: 13px;
     color: rgba(255, 255, 255, 0.7);
 }
 
@@ -242,17 +223,43 @@ body, html {
     font-variant-numeric: tabular-nums;
 }
 
+.vm-screen-fullscreen {
+    flex: 1;
+    width: 100%;
+    height: calc(100vh - 50px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
 .danger-btn {
     background-color: transparent;
     color: #ff4d4d;
     border: 1px solid rgba(255, 77, 77, 0.3);
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     transition: background 0.2s;
 }
 
 .danger-btn:hover {
     background-color: rgba(255, 77, 77, 0.1);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
