@@ -10,7 +10,7 @@
 </head>
 <body>
     <div class="vm-app-wrapper">
-        <header class="vm-topbar">
+        <header class="vm-topbar" id="vm-topbar">
             <div class="brand-info">
                 <span class="brand-dot"></span>
                 <h2>Celsius-001 VM</h2>
@@ -18,40 +18,39 @@
             <button id="homeBtn" class="action-btn">Home</button>
         </header>
 
-        <main class="vm-main">
-            <div class="vm-card" id="vm-card">
+        <main class="vm-main" id="vm-main">
+            <div class="vm-card" id="idle-view">
                 <div class="vm-card-header">
                     <h3>Cloud Environment</h3>
                     <span id="session-status" class="status-badge offline">Idle</span>
                 </div>
-
-                <div class="vm-card-body" id="vm-body">
-                    <div class="vm-idle-view" id="idle-view">
-                        <div class="vm-info-box">
-                            <p>Launch an isolated virtual environment instance.</p>
-                            <div class="vm-specs">
-                                <span>Duration: <strong>25 Minutes</strong></span>
-                                <span>Capacity: <strong id="capacity-count">0</strong> / 2 Active</span>
-                            </div>
-                        </div>
-                        <button id="launchBtn" class="primary-btn">Launch VM</button>
-                    </div>
-
-                    <div class="vm-active-view" id="active-view" style="display: none;">
-                        <div class="vm-screen-container">
-                            <div id="vm-display" class="vm-screen-placeholder">
-                                <div class="spinner"></div>
-                                <p>Connecting to remote host...</p>
-                            </div>
-                        </div>
-                        <div class="vm-controls">
-                            <div class="timer-display">
-                                <span>Time Remaining:</span>
-                                <strong id="countdown-timer">25:00</strong>
-                            </div>
-                            <button id="terminateBtn" class="danger-btn">End Session</button>
+                <div class="vm-card-body">
+                    <div class="vm-info-box">
+                        <p>Launch an isolated full-screen virtual desktop session.</p>
+                        <div class="vm-specs">
+                            <span>Duration: <strong>25 Minutes</strong></span>
+                            <span>Global Limit: <strong id="capacity-count">0</strong> / 2 Active</span>
                         </div>
                     </div>
+                    <button id="launchBtn" class="primary-btn">Launch VM</button>
+                </div>
+            </div>
+
+            <div class="vm-fullscreen-container" id="active-view" style="display: none;">
+                <div class="vm-fullscreen-header">
+                    <div class="vm-status-indicator">
+                        <span class="live-dot"></span>
+                        <span>Live Session</span>
+                    </div>
+                    <div class="timer-display">
+                        <span>Time Remaining:</span>
+                        <strong id="countdown-timer">25:00</strong>
+                    </div>
+                    <button id="terminateBtn" class="danger-btn">End Session</button>
+                </div>
+                <div id="vm-display" class="vm-screen-fullscreen">
+                    <div class="spinner"></div>
+                    <p>Connecting to remote desktop host...</p>
                 </div>
             </div>
         </main>
