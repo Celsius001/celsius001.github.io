@@ -28,13 +28,13 @@ const idleView = document.getElementById('idle-view');
 const activeView = document.getElementById('active-view');
 const launchBtn = document.getElementById('launchBtn');
 const terminateBtn = document.getElementById('terminateBtn');
-const sessionStatus = document.getElementById('session-status');
 const capacityCount = document.getElementById('capacity-count');
 const countdownTimer = document.getElementById('countdown-timer');
 const homeBtn = document.getElementById('homeBtn');
 
 let timerInterval = null;
 let sessionSecondsLeft = 1500;
+let activeSessionId = null;
 
 async function checkCapacity() {
     try {
@@ -46,7 +46,7 @@ async function checkCapacity() {
     }
 }
 checkCapacity();
-setInterval(checkCapacity, 10000);
+setInterval(checkCapacity, 5000);
 
 function startTimer() {
     sessionSecondsLeft = 1500;
@@ -78,16 +78,15 @@ async function launchVM() {
         const data = await response.json();
 
         if (!response.ok) {
-            alert(data.error || "Rate limit reached. Maximum 2 active sessions allowed.");
+            alert(data.error || "Global limit reached. Maximum 2 users can be connected at once.");
             launchBtn.disabled = false;
             launchBtn.textContent = "Launch VM";
             return;
         }
 
+        activeSessionId = data.sessionId;
         idleView.style.display = 'none';
         activeView.style.display = 'flex';
-        sessionStatus.textContent = "Running";
-        sessionStatus.className = "status-badge online";
         startTimer();
     } catch (e) {
         alert("Failed to connect to backend server.");
@@ -99,18 +98,29 @@ async function launchVM() {
 async function terminateSession() {
     if (timerInterval) clearInterval(timerInterval);
 
-    try {
-        await fetch(`${BACKEND_URL}/api/terminate`, { method: 'POST' });
-    } catch (e) {}
+    if (activeSessionId) {
+        try {
+            await fetch(`${BACKEND_URL}/api/terminate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: activeSessionId })
+            });
+        } catch (e) {}
+        activeSessionId = null;
+    }
 
     activeView.style.display = 'none';
     idleView.style.display = 'flex';
-    sessionStatus.textContent = "Idle";
-    sessionStatus.className = "status-badge offline";
     launchBtn.disabled = false;
     launchBtn.textContent = "Launch VM";
     checkCapacity();
 }
+
+window.addEventListener('beforeunload', () => {
+    if (activeSessionId) {
+        navigator.sendBeacon(`${BACKEND_URL}/api/terminate`, JSON.stringify({ sessionId: activeSessionId }));
+    }
+});
 
 launchBtn.addEventListener('click', launchVM);
 terminateBtn.addEventListener('click', terminateSession);
